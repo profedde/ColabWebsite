@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Account | GuessChess</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="page page-account">
+      <section class="account-top">
+        <div>
+          <p class="eyebrow">COLAB ACCOUNT</p>
+          <h1>Welcome<%= user.username ? `, ${user.username}` : "" %></h1>
+          <p class="subtitle">
+            Manage your GuessChess account settings.
+          </p>
+        </div>
+        <form action="/logout" method="post">
+          <button type="submit" class="btn-outline">Log Out</button>
+        </form>
+      </section>
+
+      <section class="card-grid">
+        <article class="card">
+          <h2>Profile</h2>
+          <dl class="profile-list">
+            <div>
+              <dt>Email</dt>
+              <dd><%= user.email || "Not available" %></dd>
+            </div>
+            <div>
+              <dt>Username</dt>
+              <dd><%= user.username || "Not available" %></dd>
+            </div>
+            <div>
+              <dt>User ID</dt>
+              <dd><%= user.id %></dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="card">
+          <h2>Change Password</h2>
+          <form action="/account/change-password" method="post" class="form">
+            <label>
+              Current Password
+              <input type="password" name="currentPassword" required />
+            </label>
+            <label>
+              New Password
+              <input type="password" name="newPassword" minlength="8" required />
+            </label>
+            <label>
+              Confirm New Password
+              <input type="password" name="confirmNewPassword" minlength="8" required />
+            </label>
+            <button type="submit">Update Password</button>
+          </form>
+        </article>
+
+        <article class="card danger-card">
+          <h2>Request Account Deletion</h2>
+          <p class="small-text">
+            Send a deletion request and our team will process it.
+          </p>
+          <form action="/account/delete-request" method="post" class="form">
+            <label>
+              Reason (optional)
+              <textarea name="reason" rows="4" placeholder="Why do you want to delete your account?"></textarea>
+            </label>
+            <button type="submit" class="btn-danger">Request Deletion</button>
+          </form>
+        </article>
+      </section>
+
+      <% if (flash) { %>
+        <div class="flash flash-<%= flash.type %>"><%= flash.message %></div>
+      <% } %>
+
+      <footer class="legal-links">
+        <a href="/privacy-policy.html">Privacy Policy</a>
+        <a href="/terms-and-conditions.html">Terms &amp; Conditions</a>
+        <a href="/delete-account.html">Delete Account Page</a>
+      </footer>
+    </main>
+  </body>
+</html>

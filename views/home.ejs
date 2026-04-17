@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GuessChess | Colab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="page page-home">
+      <section class="hero">
+        <p class="eyebrow">INDIE STUDIO COLAB</p>
+        <h1>GuessChess</h1>
+        <p class="subtitle">
+          Chess instinct meets daily challenge. Log in to manage your account and stay synced
+          with the app.
+        </p>
+
+        <div class="store-row">
+          <a class="store-btn" href="#" aria-disabled="true">
+            <span class="store-badge">Google Play</span>
+            <strong>Coming Soon</strong>
+          </a>
+          <a class="store-btn" href="#" aria-disabled="true">
+            <span class="store-badge">App Store</span>
+            <strong>Coming Soon</strong>
+          </a>
+        </div>
+      </section>
+
+      <section class="card-grid">
+        <article class="card">
+          <h2>Log In</h2>
+          <form action="/login" method="post" class="form">
+            <label>
+              Email or Username
+              <input type="text" name="identifier" required />
+            </label>
+            <label>
+              Password
+              <input type="password" name="password" required />
+            </label>
+            <button type="submit">Log In</button>
+          </form>
+        </article>
+
+        <article class="card">
+          <h2>Create Account</h2>
+          <form action="/register" method="post" class="form">
+            <label>
+              Email
+              <input type="email" name="email" />
+            </label>
+            <label>
+              Username
+              <input type="text" name="username" />
+            </label>
+            <label>
+              Password
+              <input type="password" name="password" minlength="8" required />
+            </label>
+            <label>
+              Confirm Password
+              <input type="password" name="confirmPassword" minlength="8" required />
+            </label>
+            <button type="submit">Register</button>
+          </form>
+        </article>
+      </section>
+
+      <% if (flash) { %>
+        <div class="flash flash-<%= flash.type %>"><%= flash.message %></div>
+      <% } %>
+
+      <footer class="legal-links">
+        <a href="/privacy-policy.html">Privacy Policy</a>
+        <a href="/terms-and-conditions.html">Terms &amp; Conditions</a>
+        <a href="/delete-account.html">Delete Account</a>
+      </footer>
+    </main>
+  </body>
+  </html>
