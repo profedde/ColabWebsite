@@ -1,8 +1,8 @@
 const path = require("path");
 const express = require("express");
 const session = require("express-session");
-const { testConnection } = require("./src/db");
 const userStore = require("./src/userStore");
+const { testConnection } = require("./src/db");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,8 +17,8 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.use(
   session({
-    name: "guesschess.sid",
-    secret: process.env.SESSION_SECRET || "guesschess-dev-secret",
+    name: "colab.sid",
+    secret: process.env.SESSION_SECRET || "colab-dev-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -30,26 +30,8 @@ app.use(
   })
 );
 
-const setFlash = (req, type, message) => {
-  req.session.flash = { type, message };
-};
-
-const readFlash = (req) => {
-  const flash = req.session.flash;
-  delete req.session.flash;
-  return flash;
-};
-
-const requireAuth = (req, res, next) => {
-  if (!req.session.userId) {
-    setFlash(req, "error", "Please log in first.");
-    return res.redirect("/");
-  }
-  return next();
-};
-
 const withTimeout = async (promise, ms) => {
-  let timerId;
+  let timerId = null;
   try {
     return await Promise.race([
       promise,
@@ -64,6 +46,24 @@ const withTimeout = async (promise, ms) => {
   }
 };
 
+const setFlash = (req, type, message) => {
+  req.session.flash = { type, message };
+};
+
+const pullFlash = (req) => {
+  const flash = req.session.flash || null;
+  delete req.session.flash;
+  return flash;
+};
+
+const requireAuth = (req, res, next) => {
+  if (!req.session.userId) {
+    setFlash(req, "error", "Please log in first.");
+    return res.redirect("/");
+  }
+  return next();
+};
+
 app.get("/health", (_req, res) => {
   return res.status(200).json({
     ok: true,
@@ -74,8 +74,7 @@ app.get("/health", (_req, res) => {
 app.get("/health/db", async (_req, res) => {
   const dbOk = await withTimeout(testConnection(), 3000);
   return res.status(dbOk ? 200 : 500).json({
-    ok: dbOk,
-    database: dbOk ? "reachable" : "unreachable_or_timeout"
+    ok: dbOk
   });
 });
 
@@ -83,10 +82,7 @@ app.get("/", (req, res) => {
   if (req.session.userId) {
     return res.redirect("/account");
   }
-
-  return res.render("home", {
-    flash: readFlash(req)
-  });
+  return res.render("home", { flash: pullFlash(req) });
 });
 
 app.post("/register", async (req, res) => {
@@ -111,8 +107,8 @@ app.post("/register", async (req, res) => {
   }
 
   try {
-    const created = await userStore.registerUser({ email, username, password });
-    req.session.userId = created.id;
+    const user = await userStore.registerUser({ email, username, password });
+    req.session.userId = user.id;
     setFlash(req, "success", "Welcome to GuessChess.");
     return res.redirect("/account");
   } catch (error) {
@@ -126,7 +122,7 @@ app.post("/login", async (req, res) => {
   const password = String(req.body.password || "");
 
   if (!identifier || !password) {
-    setFlash(req, "error", "Please provide your credentials.");
+    setFlash(req, "error", "Enter email/username and password.");
     return res.redirect("/");
   }
 
@@ -143,8 +139,8 @@ app.post("/login", async (req, res) => {
 
 app.post("/logout", (req, res) => {
   req.session.destroy(() => {
-    res.clearCookie("connect.sid");
-    res.redirect("/");
+    res.clearCookie("colab.sid");
+    return res.redirect("/");
   });
 });
 
@@ -157,9 +153,8 @@ app.get("/account", requireAuth, async (req, res) => {
       });
       return;
     }
-
     return res.render("account", {
-      flash: readFlash(req),
+      flash: pullFlash(req),
       user
     });
   } catch (_error) {
@@ -191,7 +186,7 @@ app.post("/account/change-password", requireAuth, async (req, res) => {
     });
     setFlash(req, "success", "Password updated.");
   } catch (error) {
-    setFlash(req, "error", error.message || "Password update failed.");
+    setFlash(req, "error", error.message || "Could not update password.");
   }
 
   return res.redirect("/account");
@@ -199,21 +194,15 @@ app.post("/account/change-password", requireAuth, async (req, res) => {
 
 app.post("/account/delete-request", requireAuth, async (req, res) => {
   const reason = String(req.body.reason || "").trim();
-
   try {
     await userStore.requestDeleteAccount({
       userId: req.session.userId,
       reason
     });
-    setFlash(
-      req,
-      "success",
-      "Account deletion request received. Our team will process it."
-    );
+    setFlash(req, "success", "Delete request sent successfully.");
   } catch (error) {
-    setFlash(req, "error", error.message || "Delete request failed.");
+    setFlash(req, "error", error.message || "Could not submit delete request.");
   }
-
   return res.redirect("/account");
 });
 
@@ -226,9 +215,9 @@ app.use((error, _req, res, _next) => {
   if (res.headersSent) {
     return;
   }
-  res.status(500).send("Internal Server Error");
+  return res.status(500).send("Internal Server Error");
 });
 
 app.listen(PORT, () => {
-  console.log(`GuessChess site running on port ${PORT}`);
+  console.log(`Colab GuessChess website listening on ${PORT}`);
 });

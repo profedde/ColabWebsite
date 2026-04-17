@@ -16,89 +16,63 @@ const isSafeIdentifier = (value) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(value);
 
 const quoteIdent = (value) => {
   if (!isSafeIdentifier(value)) {
-    throw new Error(`Unsafe identifier "${value}"`);
+    throw new Error(`Unsafe identifier: ${value}`);
   }
   return `"${value}"`;
 };
 
-const pickFirst = (candidates, columnsSet) =>
-  candidates.find((item) => columnsSet.has(item)) || null;
+const pickFirst = (candidates, set) => candidates.find((candidate) => set.has(candidate)) || null;
 
-const isRequiredColumn = (mapping, columnName) => {
-  const row = mapping.rows.find((item) => item.column_name === columnName);
-  if (!row) {
-    return false;
-  }
-  return row.is_nullable === "NO" && row.column_default == null;
-};
-
-const getAllColumns = async () => {
+const getColumnsByTable = async () => {
   const result = await pool.query(
-    `SELECT table_name, column_name, is_nullable, data_type, column_default
+    `SELECT table_name, column_name, is_nullable, column_default
      FROM information_schema.columns
      WHERE table_schema = 'public'
      ORDER BY table_name, ordinal_position`
   );
 
-  const byTable = new Map();
+  const grouped = new Map();
   for (const row of result.rows) {
-    if (!byTable.has(row.table_name)) {
-      byTable.set(row.table_name, []);
+    if (!grouped.has(row.table_name)) {
+      grouped.set(row.table_name, []);
     }
-    byTable.get(row.table_name).push(row);
+    grouped.get(row.table_name).push(row);
   }
-
-  return byTable;
+  return grouped;
 };
 
-const detectBestMapping = (allTables) => {
-  const candidates = [];
+const detectMapping = (tables) => {
+  const options = [];
 
-  for (const [tableName, rows] of allTables.entries()) {
-    const columnsSet = new Set(rows.map((row) => row.column_name));
-    const idCol = pickFirst(preferredColumns.id, columnsSet) || rows[0]?.column_name || null;
-    const emailCol = pickFirst(preferredColumns.email, columnsSet);
-    const usernameCol = pickFirst(preferredColumns.username, columnsSet);
-    const passwordCol = pickFirst(preferredColumns.password, columnsSet);
-    const createdAtCol = pickFirst(preferredColumns.createdAt, columnsSet);
-    const updatedAtCol = pickFirst(preferredColumns.updatedAt, columnsSet);
+  for (const [tableName, rows] of tables.entries()) {
+    const colSet = new Set(rows.map((r) => r.column_name));
+    const mapping = {
+      tableName,
+      idCol: pickFirst(preferredColumns.id, colSet) || rows[0]?.column_name || null,
+      emailCol: pickFirst(preferredColumns.email, colSet),
+      usernameCol: pickFirst(preferredColumns.username, colSet),
+      passwordCol: pickFirst(preferredColumns.password, colSet),
+      createdAtCol: pickFirst(preferredColumns.createdAt, colSet),
+      updatedAtCol: pickFirst(preferredColumns.updatedAt, colSet),
+      rows
+    };
 
-    if (!passwordCol || (!emailCol && !usernameCol)) {
+    if (!mapping.passwordCol || (!mapping.emailCol && !mapping.usernameCol)) {
       continue;
     }
 
     let score = 0;
-    if (tableName === "users") {
-      score += 100;
-    }
-    if (tableName.includes("user")) {
-      score += 20;
-    }
-    if (emailCol) {
-      score += 10;
-    }
-    if (usernameCol) {
-      score += 10;
-    }
-    if (idCol) {
-      score += 10;
-    }
+    if (tableName === "users") score += 100;
+    if (tableName.includes("user")) score += 20;
+    if (mapping.idCol) score += 10;
+    if (mapping.emailCol) score += 10;
+    if (mapping.usernameCol) score += 10;
 
-    candidates.push({
-      score,
-      tableName,
-      idCol,
-      emailCol,
-      usernameCol,
-      passwordCol,
-      createdAtCol,
-      updatedAtCol,
-      rows
-    });
+    options.push({ score, mapping });
   }
 
-  candidates.sort((a, b) => b.score - a.score);
-  return candidates[0] || null;
+  options.sort((a, b) => b.score - a.score);
+  return options[0]?.mapping || null;
 };
 
 const getMapping = async () => {
@@ -107,91 +81,89 @@ const getMapping = async () => {
   }
 
   const explicitTable = process.env.USER_TABLE;
-  const explicitId = process.env.USER_ID_COLUMN;
+  const explicitPassword = process.env.USER_PASSWORD_COLUMN;
   const explicitEmail = process.env.USER_EMAIL_COLUMN;
   const explicitUsername = process.env.USER_USERNAME_COLUMN;
-  const explicitPassword = process.env.USER_PASSWORD_COLUMN;
-  const explicitCreated = process.env.USER_CREATED_AT_COLUMN;
-  const explicitUpdated = process.env.USER_UPDATED_AT_COLUMN;
 
   if (explicitTable && explicitPassword && (explicitEmail || explicitUsername)) {
     cachedMapping = {
       tableName: explicitTable,
-      idCol: explicitId || "id",
+      idCol: process.env.USER_ID_COLUMN || "id",
       emailCol: explicitEmail || null,
       usernameCol: explicitUsername || null,
       passwordCol: explicitPassword,
-      createdAtCol: explicitCreated || null,
-      updatedAtCol: explicitUpdated || null,
+      createdAtCol: process.env.USER_CREATED_AT_COLUMN || null,
+      updatedAtCol: process.env.USER_UPDATED_AT_COLUMN || null,
       rows: []
     };
     return cachedMapping;
   }
 
-  const allTables = await getAllColumns();
-  const detected = detectBestMapping(allTables);
-  if (detected) {
-    cachedMapping = detected;
-    return cachedMapping;
+  const grouped = await getColumnsByTable();
+  const detected = detectMapping(grouped);
+
+  if (!detected) {
+    throw new Error(
+      "Users table not detected. Set USER_TABLE, USER_PASSWORD_COLUMN and USER_EMAIL_COLUMN or USER_USERNAME_COLUMN."
+    );
   }
 
-  throw new Error(
-    "Could not auto-detect your users table. Set USER_TABLE, USER_PASSWORD_COLUMN, and USER_EMAIL_COLUMN or USER_USERNAME_COLUMN in Railway env vars."
-  );
+  cachedMapping = detected;
+  return cachedMapping;
 };
 
-const toPublicUser = (rawUser, mapping) => ({
-  id: rawUser[mapping.idCol],
-  email: mapping.emailCol ? rawUser[mapping.emailCol] : null,
-  username: mapping.usernameCol ? rawUser[mapping.usernameCol] : null
+const isRequiredWithoutDefault = (mapping, columnName) => {
+  const columnInfo = mapping.rows.find((r) => r.column_name === columnName);
+  if (!columnInfo) return false;
+  return columnInfo.is_nullable === "NO" && columnInfo.column_default == null;
+};
+
+const toPublicUser = (row, mapping) => ({
+  id: row[mapping.idCol],
+  email: mapping.emailCol ? row[mapping.emailCol] : null,
+  username: mapping.usernameCol ? row[mapping.usernameCol] : null
 });
 
-const verifyPassword = async (plain, stored) => {
-  if (!stored) {
-    return false;
+const verifyPassword = async (plain, storedValue) => {
+  if (storedValue == null) return false;
+  const stored = String(storedValue);
+  if (stored.startsWith("$2a$") || stored.startsWith("$2b$") || stored.startsWith("$2y$")) {
+    return bcrypt.compare(plain, stored);
   }
-  const storedText = String(stored);
-  if (storedText.startsWith("$2a$") || storedText.startsWith("$2b$") || storedText.startsWith("$2y$")) {
-    return bcrypt.compare(plain, storedText);
-  }
-  return plain === storedText;
+  return plain === stored;
 };
 
-const loadUserById = async (userId, mapping) => {
-  const query = `SELECT * FROM ${quoteIdent(mapping.tableName)} WHERE ${quoteIdent(mapping.idCol)} = $1 LIMIT 1`;
-  const result = await pool.query(query, [userId]);
+const loadUserByIdRaw = async (userId, mapping) => {
+  const sql = `SELECT * FROM ${quoteIdent(mapping.tableName)} WHERE ${quoteIdent(mapping.idCol)} = $1 LIMIT 1`;
+  const result = await pool.query(sql, [userId]);
   return result.rows[0] || null;
 };
 
 const loginUser = async ({ identifier, password }) => {
   const mapping = await getMapping();
-  const whereClauses = [];
+  const whereParts = [];
 
   if (mapping.emailCol) {
-    whereClauses.push(`LOWER(${quoteIdent(mapping.emailCol)}) = LOWER($1)`);
+    whereParts.push(`LOWER(${quoteIdent(mapping.emailCol)}) = LOWER($1)`);
   }
   if (mapping.usernameCol) {
-    whereClauses.push(`LOWER(${quoteIdent(mapping.usernameCol)}) = LOWER($1)`);
+    whereParts.push(`LOWER(${quoteIdent(mapping.usernameCol)}) = LOWER($1)`);
   }
 
-  if (whereClauses.length === 0) {
-    throw new Error("No login columns configured.");
+  if (whereParts.length === 0) {
+    throw new Error("No login columns available.");
   }
 
-  const sql = `
-    SELECT *
-    FROM ${quoteIdent(mapping.tableName)}
-    WHERE ${whereClauses.join(" OR ")}
-    LIMIT 1
-  `;
+  const sql = `SELECT * FROM ${quoteIdent(mapping.tableName)} WHERE ${whereParts.join(" OR ")} LIMIT 1`;
   const result = await pool.query(sql, [identifier]);
   const user = result.rows[0];
+
   if (!user) {
     throw new Error("Invalid credentials.");
   }
 
-  const ok = await verifyPassword(password, user[mapping.passwordCol]);
-  if (!ok) {
+  const validPassword = await verifyPassword(password, user[mapping.passwordCol]);
+  if (!validPassword) {
     throw new Error("Invalid credentials.");
   }
 
@@ -200,80 +172,83 @@ const loginUser = async ({ identifier, password }) => {
 
 const registerUser = async ({ email, username, password }) => {
   const mapping = await getMapping();
-
-  if (!mapping.emailCol && !mapping.usernameCol) {
-    throw new Error("Registration unavailable. No email/username column found.");
-  }
-
   const normalizedEmail = email ? email.toLowerCase() : "";
   const normalizedUsername = username || "";
-  const emailRequired = mapping.emailCol ? isRequiredColumn(mapping, mapping.emailCol) : false;
-  const usernameRequired = mapping.usernameCol
-    ? isRequiredColumn(mapping, mapping.usernameCol)
-    : false;
 
   if (!normalizedEmail && !normalizedUsername) {
     throw new Error("Email or username is required.");
   }
-  if (mapping.emailCol && emailRequired && !normalizedEmail) {
-    throw new Error("Email is required by your database schema.");
+
+  if (mapping.emailCol && isRequiredWithoutDefault(mapping, mapping.emailCol) && !normalizedEmail) {
+    throw new Error("Email is required by database schema.");
   }
-  if (mapping.usernameCol && usernameRequired && !normalizedUsername) {
-    throw new Error("Username is required by your database schema.");
+  if (
+    mapping.usernameCol &&
+    isRequiredWithoutDefault(mapping, mapping.usernameCol) &&
+    !normalizedUsername
+  ) {
+    throw new Error("Username is required by database schema.");
   }
 
-  const duplicateChecks = [];
+  const duplicateParts = [];
   const duplicateValues = [];
-
   if (mapping.emailCol && normalizedEmail) {
-    duplicateChecks.push(`LOWER(${quoteIdent(mapping.emailCol)}) = LOWER($${duplicateValues.length + 1})`);
+    duplicateParts.push(`LOWER(${quoteIdent(mapping.emailCol)}) = LOWER($${duplicateValues.length + 1})`);
     duplicateValues.push(normalizedEmail);
   }
   if (mapping.usernameCol && normalizedUsername) {
-    duplicateChecks.push(`LOWER(${quoteIdent(mapping.usernameCol)}) = LOWER($${duplicateValues.length + 1})`);
+    duplicateParts.push(
+      `LOWER(${quoteIdent(mapping.usernameCol)}) = LOWER($${duplicateValues.length + 1})`
+    );
     duplicateValues.push(normalizedUsername);
   }
 
-  if (duplicateChecks.length > 0) {
-    const duplicateSql = `
-      SELECT 1
-      FROM ${quoteIdent(mapping.tableName)}
-      WHERE ${duplicateChecks.join(" OR ")}
-      LIMIT 1
-    `;
-    const duplicateResult = await pool.query(duplicateSql, duplicateValues);
-    if (duplicateResult.rowCount > 0) {
-      throw new Error("An account with that email/username already exists.");
+  if (duplicateParts.length > 0) {
+    const dupSql = `SELECT 1 FROM ${quoteIdent(mapping.tableName)} WHERE ${duplicateParts.join(" OR ")} LIMIT 1`;
+    const dupResult = await pool.query(dupSql, duplicateValues);
+    if (dupResult.rowCount > 0) {
+      throw new Error("Account already exists.");
     }
   }
 
-  const hash = await bcrypt.hash(password, 12);
-  const insertCols = [];
+  const hashed = await bcrypt.hash(password, 12);
+  const insertColumns = [];
   const insertValues = [];
 
   if (mapping.emailCol && normalizedEmail) {
-    insertCols.push(mapping.emailCol);
+    insertColumns.push(mapping.emailCol);
     insertValues.push(normalizedEmail);
   }
   if (mapping.usernameCol && normalizedUsername) {
-    insertCols.push(mapping.usernameCol);
+    insertColumns.push(mapping.usernameCol);
     insertValues.push(normalizedUsername);
   }
-  insertCols.push(mapping.passwordCol);
-  insertValues.push(hash);
+  insertColumns.push(mapping.passwordCol);
+  insertValues.push(hashed);
 
   if (mapping.createdAtCol) {
-    insertCols.push(mapping.createdAtCol);
+    insertColumns.push(mapping.createdAtCol);
     insertValues.push(new Date());
   }
   if (mapping.updatedAtCol) {
-    insertCols.push(mapping.updatedAtCol);
+    insertColumns.push(mapping.updatedAtCol);
     insertValues.push(new Date());
   }
 
+  const missingRequiredColumns = (mapping.rows || [])
+    .filter((row) => row.is_nullable === "NO" && row.column_default == null)
+    .map((row) => row.column_name)
+    .filter((col) => !insertColumns.includes(col) && col !== mapping.idCol);
+
+  if (missingRequiredColumns.length > 0) {
+    throw new Error(
+      `Registration blocked by required columns in users table: ${missingRequiredColumns.join(", ")}`
+    );
+  }
+
   const sql = `
-    INSERT INTO ${quoteIdent(mapping.tableName)} (${insertCols.map(quoteIdent).join(", ")})
-    VALUES (${insertValues.map((_, index) => `$${index + 1}`).join(", ")})
+    INSERT INTO ${quoteIdent(mapping.tableName)} (${insertColumns.map(quoteIdent).join(", ")})
+    VALUES (${insertValues.map((_, idx) => `$${idx + 1}`).join(", ")})
     RETURNING *
   `;
 
@@ -281,53 +256,44 @@ const registerUser = async ({ email, username, password }) => {
     const result = await pool.query(sql, insertValues);
     return toPublicUser(result.rows[0], mapping);
   } catch (error) {
-    if (error.code === "23502" && error.column) {
-      throw new Error(
-        `Registration failed because column "${error.column}" is required in your database schema.`
-      );
-    }
     if (error.code === "23505") {
-      throw new Error("An account with that email/username already exists.");
+      throw new Error("Account already exists.");
     }
-    throw error;
+    throw new Error("Registration failed.");
   }
 };
 
 const getUserById = async (userId) => {
   const mapping = await getMapping();
-  const user = await loadUserById(userId, mapping);
-  if (!user) {
-    return null;
-  }
+  const user = await loadUserByIdRaw(userId, mapping);
+  if (!user) return null;
   return toPublicUser(user, mapping);
 };
 
 const changePassword = async ({ userId, currentPassword, newPassword }) => {
   const mapping = await getMapping();
-  const existingUser = await loadUserById(userId, mapping);
-  if (!existingUser) {
+  const user = await loadUserByIdRaw(userId, mapping);
+  if (!user) {
     throw new Error("User not found.");
   }
 
-  const valid = await verifyPassword(currentPassword, existingUser[mapping.passwordCol]);
-  if (!valid) {
+  const validPassword = await verifyPassword(currentPassword, user[mapping.passwordCol]);
+  if (!validPassword) {
     throw new Error("Current password is incorrect.");
   }
 
   const hashed = await bcrypt.hash(newPassword, 12);
-  const values = [hashed, userId];
   let sql = `UPDATE ${quoteIdent(mapping.tableName)} SET ${quoteIdent(mapping.passwordCol)} = $1`;
   if (mapping.updatedAtCol) {
     sql += `, ${quoteIdent(mapping.updatedAtCol)} = NOW()`;
   }
   sql += ` WHERE ${quoteIdent(mapping.idCol)} = $2`;
-
-  await pool.query(sql, values);
+  await pool.query(sql, [hashed, userId]);
 };
 
 const requestDeleteAccount = async ({ userId, reason }) => {
   const mapping = await getMapping();
-  const user = await loadUserById(userId, mapping);
+  const user = await loadUserByIdRaw(userId, mapping);
   if (!user) {
     throw new Error("User not found.");
   }
@@ -345,10 +311,8 @@ const requestDeleteAccount = async ({ userId, reason }) => {
   `);
 
   await pool.query(
-    `
-    INSERT INTO account_deletion_requests (user_id, user_email, user_username, reason)
-    VALUES ($1, $2, $3, $4)
-    `,
+    `INSERT INTO account_deletion_requests (user_id, user_email, user_username, reason)
+     VALUES ($1, $2, $3, $4)`,
     [
       String(user[mapping.idCol]),
       mapping.emailCol ? user[mapping.emailCol] : null,
@@ -359,8 +323,8 @@ const requestDeleteAccount = async ({ userId, reason }) => {
 };
 
 module.exports = {
-  registerUser,
   loginUser,
+  registerUser,
   getUserById,
   changePassword,
   requestDeleteAccount

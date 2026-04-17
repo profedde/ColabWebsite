@@ -1,7 +1,7 @@
-﻿{
-  "name": "colab-guesschess-site",
+{
+  "name": "colab-guesschess-website",
   "version": "1.0.0",
-  "description": "Colab GuessChess website with auth backed by PostgreSQL",
+  "description": "Colab website with GuessChess auth and account management",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -4,7 +4,8 @@ const FALLBACK_DATABASE_URL =
   "postgresql://postgres:CGhYEoROTtHYwJZGOOpnpAEUijEZdGFA@postgres.railway.internal:5432/railway";
 
 const connectionString = process.env.DATABASE_URL || FALLBACK_DATABASE_URL;
-const inferSslConfig = () => {
+
+const getSslConfig = () => {
   if (process.env.PGSSL === "disable") {
     return false;
   }
@@ -18,7 +19,7 @@ const inferSslConfig = () => {
       return false;
     }
   } catch (_error) {
-    // Fallback to SSL enabled when URL parsing fails.
+    // Keep SSL enabled by default if URL parsing fails.
   }
 
   return { rejectUnauthorized: false };
@@ -26,7 +27,7 @@ const inferSslConfig = () => {
 
 const pool = new Pool({
   connectionString,
-  ssl: inferSslConfig(),
+  ssl: getSslConfig(),
   connectionTimeoutMillis: Number(process.env.PG_CONNECT_TIMEOUT_MS || 5000),
   idleTimeoutMillis: Number(process.env.PG_IDLE_TIMEOUT_MS || 10000),
   max: Number(process.env.PG_POOL_MAX || 10)
@@ -40,7 +41,7 @@ const testConnection = async () => {
     return true;
   } catch (error) {
     if (process.env.DEBUG_DB === "true") {
-      console.error("Database health check failed:", error.message);
+      console.error("DB check failed:", error.message);
     }
     return false;
   } finally {

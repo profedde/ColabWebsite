@@ -3,32 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GuessChess | Colab</title>
+    <title>Colab | GuessChess</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <main class="page page-home">
       <section class="hero">
-        <p class="eyebrow">INDIE STUDIO COLAB</p>
-        <h1>GuessChess</h1>
+        <p class="eyebrow">INDIE GAME STUDIO</p>
+        <h1>Colab</h1>
         <p class="subtitle">
-          Chess instinct meets daily challenge. Log in to manage your account and stay synced
-          with the app.
+          First title: <strong>GuessChess</strong>. Log in to your account or create one to manage
+          your profile.
         </p>
 
-        <div class="store-row">
-          <a class="store-btn" href="#" aria-disabled="true">
-            <span class="store-badge">Google Play</span>
-            <strong>Coming Soon</strong>
+        <div class="store-buttons">
+          <a class="store-button" href="#" aria-disabled="true">
+            <span class="store-top">Get it on</span>
+            <span class="store-main">Google Play</span>
           </a>
-          <a class="store-btn" href="#" aria-disabled="true">
-            <span class="store-badge">App Store</span>
-            <strong>Coming Soon</strong>
+          <a class="store-button" href="#" aria-disabled="true">
+            <span class="store-top">Download on the</span>
+            <span class="store-main">App Store</span>
           </a>
         </div>
       </section>
 
-      <section class="card-grid">
+      <% if (flash) { %>
+        <section class="flash flash-<%= flash.type %>"><%= flash.message %></section>
+      <% } %>
+
+      <section class="cards two-col">
         <article class="card">
           <h2>Log In</h2>
           <form action="/login" method="post" class="form">
@@ -45,7 +49,7 @@
         </article>
 
         <article class="card">
-          <h2>Create Account</h2>
+          <h2>Register</h2>
           <form action="/register" method="post" class="form">
             <label>
               Email
@@ -63,20 +67,16 @@
               Confirm Password
               <input type="password" name="confirmPassword" minlength="8" required />
             </label>
-            <button type="submit">Register</button>
+            <button type="submit">Create Account</button>
           </form>
         </article>
       </section>
 
-      <% if (flash) { %>
-        <div class="flash flash-<%= flash.type %>"><%= flash.message %></div>
-      <% } %>
-
       <footer class="legal-links">
         <a href="/privacy-policy.html">Privacy Policy</a>
-        <a href="/terms-and-conditions.html">Terms &amp; Conditions</a>
+        <a href="/terms-and-conditions.html">Terms & Conditions</a>
         <a href="/delete-account.html">Delete Account</a>
       </footer>
     </main>
   </body>
-  </html>
+</html>

@@ -3,41 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Account | GuessChess</title>
+    <title>My Account | Colab</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <main class="page page-account">
-      <section class="account-top">
+      <section class="hero account-hero">
         <div>
           <p class="eyebrow">COLAB ACCOUNT</p>
-          <h1>Welcome<%= user.username ? `, ${user.username}` : "" %></h1>
-          <p class="subtitle">
-            Manage your GuessChess account settings.
-          </p>
+          <h1>GuessChess</h1>
+          <p class="subtitle">Manage your account settings.</p>
         </div>
         <form action="/logout" method="post">
-          <button type="submit" class="btn-outline">Log Out</button>
+          <button type="submit" class="button-secondary">Log Out</button>
         </form>
       </section>
 
-      <section class="card-grid">
+      <% if (flash) { %>
+        <section class="flash flash-<%= flash.type %>"><%= flash.message %></section>
+      <% } %>
+
+      <section class="cards three-col">
         <article class="card">
           <h2>Profile</h2>
-          <dl class="profile-list">
-            <div>
-              <dt>Email</dt>
-              <dd><%= user.email || "Not available" %></dd>
-            </div>
-            <div>
-              <dt>Username</dt>
-              <dd><%= user.username || "Not available" %></dd>
-            </div>
-            <div>
-              <dt>User ID</dt>
-              <dd><%= user.id %></dd>
-            </div>
-          </dl>
+          <div class="profile-grid">
+            <p><span>Email:</span> <%= user.email || "N/A" %></p>
+            <p><span>Username:</span> <%= user.username || "N/A" %></p>
+            <p><span>User ID:</span> <%= user.id %></p>
+          </div>
         </article>
 
         <article class="card">
@@ -59,29 +52,25 @@
           </form>
         </article>
 
-        <article class="card danger-card">
-          <h2>Request Account Deletion</h2>
-          <p class="small-text">
-            Send a deletion request and our team will process it.
+        <article class="card danger">
+          <h2>Delete Account Request</h2>
+          <p class="muted">
+            Submit your request and the team will process account deletion.
           </p>
           <form action="/account/delete-request" method="post" class="form">
             <label>
               Reason (optional)
-              <textarea name="reason" rows="4" placeholder="Why do you want to delete your account?"></textarea>
+              <textarea name="reason" rows="4" placeholder="Reason"></textarea>
             </label>
-            <button type="submit" class="btn-danger">Request Deletion</button>
+            <button type="submit" class="button-danger">Request Deletion</button>
           </form>
         </article>
       </section>
 
-      <% if (flash) { %>
-        <div class="flash flash-<%= flash.type %>"><%= flash.message %></div>
-      <% } %>
-
       <footer class="legal-links">
         <a href="/privacy-policy.html">Privacy Policy</a>
-        <a href="/terms-and-conditions.html">Terms &amp; Conditions</a>
-        <a href="/delete-account.html">Delete Account Page</a>
+        <a href="/terms-and-conditions.html">Terms & Conditions</a>
+        <a href="/delete-account.html">Delete Account</a>
       </footer>
     </main>
   </body>
