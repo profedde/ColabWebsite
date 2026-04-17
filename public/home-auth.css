@@ -1,48 +1,53 @@
 .auth-panel-login {
-  width: min(360px, 96%);
-  border-radius: 16px;
-  padding: 0.95rem 0.9rem 0.8rem;
+  width: min(400px, 96%);
+  border-radius: 22px;
+  padding: 1rem 0.95rem 0.85rem;
 }
 
 .auth-panel-login h3 {
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: 2.05rem;
+  letter-spacing: 0.01em;
 }
 
 .auth-panel-login .auth-close {
-  width: 32px;
-  height: 32px;
-  font-size: 1rem;
-  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
 }
 
 .auth-panel-login .auth-input {
-  height: 44px;
+  min-height: 46px;
   font-size: 1rem;
+  font-weight: 700;
 }
 
 .auth-actions-login {
   grid-template-columns: 1fr 1fr;
-  gap: 0.4rem;
+  gap: 0.42rem;
 }
 
 .auth-actions-login .auth-action {
-  border-radius: 10px;
-  font-weight: 700;
-  background: #f3f6f8;
-  border: 1px solid #ced9e0;
-  color: #0f2130;
+  font-size: 0.98rem;
+  border-radius: 999px;
 }
 
-.auth-actions-login .auth-action:hover {
-  background: #e9eff3;
-  transform: none;
+.auth-actions-login .auth-action:first-child {
+  border-color: transparent;
+  color: #fffef5;
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+}
+
+.auth-actions-login .auth-action:last-child {
+  background: linear-gradient(180deg, #fffef7, #fff0cb);
+  border: 2px solid rgba(176, 130, 60, 0.45);
+  color: #2f2148;
 }
 
 .auth-link-muted {
-  color: #0f6b60;
+  color: #0a736f;
   font-size: 0.95rem;
-  margin-top: -0.1rem;
+  margin-top: -0.05rem;
+  font-weight: 800;
 }
 
 .auth-link-muted:hover {
@@ -50,5 +55,5 @@
 }
 
 #auth-error {
-  margin-top: 0.1rem;
+  margin-top: 0.12rem;
 }

@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" fill="none">
+  <defs>
+    <style>
+      .line { stroke: #321437; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+      .dice { fill: #ffffff; }
+      .card { fill: #ffffff; }
+      .tile { fill: #d9f6ff; }
+      .coin { fill: #ffd56b; }
+      .purple { fill: #d9a9ff; }
+      .orange { fill: #ffa55a; }
+      .green { fill: #9dd67d; }
+      .pink { fill: #f4abd1; }
+      .blue { fill: #4c93ff; }
+      .teal { fill: #00a8a1; }
+      .white { fill: #ffffff; }
+      .shadow { opacity: 0.16; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="#f3c348" />
+
+  <g class="shadow">
+    <circle cx="200" cy="122" r="92" fill="#ffffff" />
+    <circle cx="1415" cy="120" r="96" fill="#ffffff" />
+    <circle cx="190" cy="770" r="88" fill="#ffffff" />
+    <circle cx="1400" cy="770" r="88" fill="#ffffff" />
+  </g>
+
+  <!-- Top-left cluster -->
+  <g transform="translate(36 22) rotate(-6)">
+    <rect class="dice line" x="0" y="0" width="120" height="66" rx="12" />
+    <circle cx="25" cy="23" r="5" fill="#321437" />
+    <circle cx="58" cy="33" r="5" fill="#321437" />
+    <circle cx="90" cy="44" r="5" fill="#321437" />
+    <rect class="blue line" x="136" y="-8" width="84" height="84" rx="13" />
+    <path class="white line" d="M164 22 h28 v28 h-28 z" />
+    <circle class="purple line" cx="252" cy="38" r="33" />
+    <circle cx="252" cy="38" r="14" fill="#b26fe0" />
+    <path class="orange line" d="M294 0 l34 28 -17 22 -35 -27 z" />
+    <path class="white line" d="M326 -12 l45 0 14 37 -23 20 -36 -8 z" />
+  </g>
+
+  <!-- Top-center board and puzzle -->
+  <g transform="translate(620 0)">
+    <rect class="tile line" x="-150" y="4" width="290" height="106" rx="16" transform="rotate(-11)" />
+    <g transform="translate(-132 15) rotate(-11)">
+      <path class="line" d="M0 0 H260 M0 26 H260 M0 52 H260 M0 78 H260 M52 0 V104 M104 0 V104 M156 0 V104 M208 0 V104" />
+    </g>
+    <path class="white line" d="M220 30 h58 q14 0 14 14 v14 q0 7 7 7 h11 v31 h-32 q-7 0 -7 7 v11 h-31 v-11 q0 -7 -7 -7 h-13 q-14 0 -14 -14 v-14 q0 -7 -7 -7 h-10 v-31 h31 q7 0 7 -7 v-14 q0 -14 14 -14 z" />
+    <path class="orange line" d="M342 46 l40 -14 16 26 -20 35 -35 -10 z" />
+    <rect class="purple line" x="414" y="58" width="27" height="27" rx="6" transform="rotate(-8 414 58)" />
+  </g>
+
+  <!-- Top-right cluster -->
+  <g transform="translate(1228 12) rotate(8)">
+    <path class="white line" d="M0 46 h94 v62 h-94 z" />
+    <path class="line" d="M18 60 h58 M18 76 h58 M18 92 h58" />
+    <path class="white line" d="M114 0 h76 v76 h-76 z" />
+    <path class="line" d="M140 20 l24 36 M164 20 l-24 36" />
+    <path class="white line" d="M212 10 h84 v84 h-84 z" transform="rotate(24 212 10)" />
+    <circle class="coin line" cx="340" cy="42" r="40" />
+    <path class="line" d="M320 42 h40 M340 22 v40" />
+    <path class="pink line" d="M402 14 h56 q13 0 13 13 v13 q0 6 6 6 h12 v30 h-30 q-6 0 -6 6 v12 h-30 v-12 q0 -6 -6 -6 h-13 q-13 0 -13 -13 v-13 q0 -6 -6 -6 h-12 v-30 h30 q6 0 6 -6 v-13 q0 -13 13 -13 z" />
+  </g>
+
+  <!-- Bottom-left cluster -->
+  <g transform="translate(20 640) rotate(9)">
+    <rect class="card line" x="0" y="44" width="128" height="176" rx="14" />
+    <path class="line" d="M16 70 h38 M16 94 h38 M16 118 h38" />
+    <circle cx="26" cy="182" r="6" fill="#321437" />
+    <path class="white line" d="M162 58 h68 v68 h-68 z" />
+    <path class="line" d="M176 80 h40 M176 100 h40 M176 120 h40" />
+    <circle class="purple line" cx="278" cy="90" r="39" />
+    <circle cx="278" cy="90" r="14" fill="#b26fe0" />
+    <path class="teal line" d="M350 60 h56 q12 0 12 12 v13 q0 6 6 6 h12 v27 h-28 q-6 0 -6 6 v11 h-28 v-11 q0 -6 -6 -6 h-13 q-12 0 -12 -12 v-13 q0 -6 -6 -6 h-12 v-27 h28 q6 0 6 -6 v-13 q0 -12 12 -12 z" />
+  </g>
+
+  <!-- Bottom-right cluster -->
+  <g transform="translate(1220 640) rotate(-12)">
+    <rect class="white line" x="0" y="34" width="142" height="188" rx="15" />
+    <path class="line" d="M16 60 h44 M16 86 h44 M16 112 h44" />
+    <path class="pink line" d="M172 56 h56 q12 0 12 12 v13 q0 6 6 6 h12 v27 h-28 q-6 0 -6 6 v11 h-28 v-11 q0 -6 -6 -6 h-13 q-12 0 -12 -12 v-13 q0 -6 -6 -6 h-12 v-27 h28 q6 0 6 -6 v-13 q0 -12 12 -12 z" />
+    <path class="green line" d="M292 56 h56 q12 0 12 12 v13 q0 6 6 6 h12 v27 h-28 q-6 0 -6 6 v11 h-28 v-11 q0 -6 -6 -6 h-13 q-12 0 -12 -12 v-13 q0 -6 -6 -6 h-12 v-27 h28 q6 0 6 -6 v-13 q0 -12 12 -12 z" />
+    <path class="white line" d="M384 72 q36 0 50 28 -11 -3 -20 1 -12 5 -16 17 17 8 27 25 -33 -2 -56 22 -25 25 -22 60 -30 -27 -71 -30 16 -13 20 -31 4 -20 -6 -36 22 2 34 -8 12 -9 13 -25 -13 6 -28 4 12 -14 32 -21 20 -8 43 -6 z" />
+  </g>
+
+  <!-- Side accents -->
+  <g>
+    <circle class="orange line" cx="56" cy="420" r="20" />
+    <circle class="blue line" cx="1520" cy="398" r="24" />
+    <rect class="white line" x="1506" y="470" width="44" height="44" rx="8" transform="rotate(10 1506 470)" />
+    <rect class="purple line" x="58" y="496" width="38" height="38" rx="8" transform="rotate(-10 58 496)" />
+  </g>
+</svg>
