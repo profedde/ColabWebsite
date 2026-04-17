@@ -1,6 +1,9 @@
 const nodemailer = require("nodemailer");
+const net = require("net");
+const dns = require("dns").promises;
 
 let cachedTransporter = null;
+let cachedTransporterKey = "";
 
 const getMailConfig = () => {
   const host = String(process.env.SMTP_HOST || "").trim();
@@ -37,21 +40,80 @@ const isMailConfigured = () => {
   return Boolean(config.host && config.port && config.user && config.pass && config.from);
 };
 
-const getTransporter = () => {
-  if (cachedTransporter) {
-    return cachedTransporter;
+const withTimeout = async (promise, ms, timeoutMessage) => {
+  let timerId = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timerId = setTimeout(() => reject(new Error(timeoutMessage)), ms);
+      })
+    ]);
+  } finally {
+    if (timerId) {
+      clearTimeout(timerId);
+    }
+  }
+};
+
+const resolveSmtpTarget = async (config) => {
+  const host = config.host;
+  const family = config.family;
+
+  if (!family || ![4, 6].includes(family) || net.isIP(host)) {
+    return {
+      connectHost: host,
+      tlsServername: null
+    };
   }
 
+  try {
+    const lookup = await withTimeout(
+      dns.lookup(host, { family, all: false }),
+      config.dnsTimeout,
+      `SMTP DNS lookup timeout for ${host}`
+    );
+    const connectHost = lookup.address || host;
+    return {
+      connectHost,
+      tlsServername: connectHost !== host ? host : null
+    };
+  } catch (error) {
+    if (process.env.DEBUG_AUTH === "true") {
+      console.error("SMTP DNS fallback to host:", error.message);
+    }
+    return {
+      connectHost: host,
+      tlsServername: null
+    };
+  }
+};
+
+const getTransporter = async (forceRefresh = false) => {
   const config = getMailConfig();
+
   if (!isMailConfigured()) {
     throw new Error("Email service not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM.");
   }
 
-  cachedTransporter = nodemailer.createTransport({
-    host: config.host,
+  const target = await resolveSmtpTarget(config);
+  const key = [
+    target.connectHost,
+    target.tlsServername || "",
+    config.port,
+    config.user,
+    config.secure,
+    config.family
+  ].join("|");
+
+  if (!forceRefresh && cachedTransporter && cachedTransporterKey === key) {
+    return cachedTransporter;
+  }
+
+  const transportOptions = {
+    host: target.connectHost,
     port: config.port,
     secure: config.secure,
-    family: config.family,
     connectionTimeout: config.connectionTimeout,
     greetingTimeout: config.greetingTimeout,
     socketTimeout: config.socketTimeout,
@@ -60,7 +122,14 @@ const getTransporter = () => {
       user: config.user,
       pass: config.pass
     }
-  });
+  };
+
+  if (target.tlsServername) {
+    transportOptions.tls = { servername: target.tlsServername };
+  }
+
+  cachedTransporter = nodemailer.createTransport(transportOptions);
+  cachedTransporterKey = key;
 
   return cachedTransporter;
 };
@@ -75,7 +144,6 @@ const escapeHtml = (value) =>
 
 const sendPasswordResetEmail = async ({ to, username, resetUrl }) => {
   const config = getMailConfig();
-  const transporter = getTransporter();
   const appName = String(process.env.APP_NAME || "GuessChess");
 
   const safeUser = escapeHtml(username || "player");
@@ -94,13 +162,37 @@ const sendPasswordResetEmail = async ({ to, username, resetUrl }) => {
     `<p>This link expires in 1 hour.</p>` +
     `<p>If you did not request this, you can ignore this email.</p>`;
 
-  await transporter.sendMail({
+  const sendPayload = {
     from: config.from,
     to,
     subject,
     text,
     html
-  });
+  };
+
+  try {
+    const transporter = await getTransporter(false);
+    await transporter.sendMail(sendPayload);
+  } catch (error) {
+    const message = String(error?.message || "");
+    const retryable =
+      message.includes("ENETUNREACH") ||
+      message.includes("EHOSTUNREACH") ||
+      message.includes("ECONNREFUSED") ||
+      message.includes("ECONNRESET") ||
+      message.includes("ETIMEDOUT");
+
+    if (!retryable) {
+      throw error;
+    }
+
+    if (process.env.DEBUG_AUTH === "true") {
+      console.error("SMTP first attempt failed, retrying once:", message);
+    }
+
+    const retryTransporter = await getTransporter(true);
+    await retryTransporter.sendMail(sendPayload);
+  }
 };
 
 module.exports = {
