@@ -77,14 +77,35 @@ const mapForgotPasswordError = (error) => {
   if (message.includes("ENETUNREACH")) {
     return "Email network unavailable on server. Set SMTP_IP_FAMILY=4 and retry.";
   }
+  if (message.includes("EHOSTUNREACH")) {
+    return "Email network unreachable from server (EHOSTUNREACH).";
+  }
+  if (message.includes("ECONNREFUSED")) {
+    return "SMTP connection refused. Check host/port or provider SMTP restrictions.";
+  }
+  if (message.includes("ECONNRESET")) {
+    return "SMTP connection reset by provider. Retry or check SMTP security settings.";
+  }
   if (message.includes("EAUTH") || message.includes("Invalid login")) {
     return "SMTP login failed. Check SMTP_USER / SMTP_PASS app password.";
   }
   if (message.includes("ETIMEDOUT") || message.includes("Greeting never received")) {
     return "Email provider timeout. Check SMTP host/port and try again.";
   }
+  if (message.includes("users table does not include email")) {
+    return "Users table mapping error: email column not detected. Set USER_EMAIL_COLUMN=email.";
+  }
+  if (message.includes("No login columns available")) {
+    return "Users table mapping error: set USER_USERNAME_COLUMN and USER_EMAIL_COLUMN.";
+  }
+  if (message.includes("Database timeout")) {
+    return "Database timeout while preparing password reset. Retry.";
+  }
   if (message.includes("Email service not configured")) {
     return message;
+  }
+  if (process.env.DEBUG_AUTH === "true" && message) {
+    return `Debug: ${message.slice(0, 220)}`;
   }
   return "Could not process password reset right now.";
 };
@@ -181,7 +202,7 @@ app.post("/forgot-password", async (req, res) => {
         identifier,
         baseUrl: getBaseUrl(req)
       }),
-      Number(process.env.FORGOT_DB_TIMEOUT_MS || 6000)
+      Number(process.env.FORGOT_DB_TIMEOUT_MS || 4500)
     );
 
     if (resetRequest === false) {
@@ -195,7 +216,7 @@ app.post("/forgot-password", async (req, res) => {
           username: resetRequest.username || identifier,
           resetUrl: resetRequest.resetUrl
         }),
-        Number(process.env.FORGOT_SMTP_TIMEOUT_MS || 8000)
+        Number(process.env.FORGOT_SMTP_TIMEOUT_MS || 5000)
       );
 
       if (sent === false) {
