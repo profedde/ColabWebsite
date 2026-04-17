@@ -84,6 +84,29 @@ const hashByMode = ({ mode, password, salt }) => {
 };
 
 const normalizeHex = (value) => String(value || "").trim().toLowerCase();
+const MIN_TRUNCATED_HASH_LEN = 24;
+
+const hashMatches = (candidate, normalizedStored) => {
+  const normalizedCandidate = normalizeHex(candidate);
+  if (!normalizedCandidate || !normalizedStored) {
+    return false;
+  }
+  if (normalizedCandidate === normalizedStored) {
+    return true;
+  }
+  if (
+    normalizedStored.length >= MIN_TRUNCATED_HASH_LEN &&
+    normalizedStored.length < normalizedCandidate.length
+  ) {
+    if (
+      normalizedCandidate.startsWith(normalizedStored) ||
+      normalizedCandidate.endsWith(normalizedStored)
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
 
 const getColumnsByTable = async () => {
   const result = await pool.query(
@@ -210,7 +233,7 @@ const verifyPassword = async ({ plain, storedValue, saltValue }) => {
     const salt = String(saltValue);
     for (const mode of saltedHashModes) {
       const candidate = hashByMode({ mode, password: plain, salt });
-      if (candidate && normalizeHex(candidate) === normalizedStored) {
+      if (candidate && hashMatches(candidate, normalizedStored)) {
         return { valid: true, mode };
       }
     }
@@ -218,7 +241,7 @@ const verifyPassword = async ({ plain, storedValue, saltValue }) => {
 
   if (looksLikeSha256) {
     const direct = hashByMode({ mode: "sha256_password", password: plain, salt: "" });
-    if (normalizeHex(direct) === normalizedStored) {
+    if (hashMatches(direct, normalizedStored)) {
       return { valid: true, mode: "sha256_password" };
     }
   }
