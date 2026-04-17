@@ -25,6 +25,7 @@ Website for the indie game studio **Colab** with auth for **GuessChess**.
 - `SMTP_USER`
 - `SMTP_PASS`
 - `SMTP_FROM`
+- `SMTP_IP_FAMILY=4` (recommended on Railway to avoid IPv6 SMTP issues)
 
 Recommended for your current `users` table:
 

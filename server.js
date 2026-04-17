@@ -72,6 +72,23 @@ const getBaseUrl = (req) => {
   return `${req.protocol}://${req.get("host")}`;
 };
 
+const mapForgotPasswordError = (error) => {
+  const message = String(error?.message || "");
+  if (message.includes("ENETUNREACH")) {
+    return "Email network unavailable on server. Set SMTP_IP_FAMILY=4 and retry.";
+  }
+  if (message.includes("EAUTH") || message.includes("Invalid login")) {
+    return "SMTP login failed. Check SMTP_USER / SMTP_PASS app password.";
+  }
+  if (message.includes("ETIMEDOUT") || message.includes("Greeting never received")) {
+    return "Email provider timeout. Check SMTP host/port and try again.";
+  }
+  if (message.includes("Email service not configured")) {
+    return message;
+  }
+  return "Could not process password reset right now.";
+};
+
 app.get("/health", (_req, res) => {
   return res.status(200).json({
     ok: true,
@@ -159,17 +176,31 @@ app.post("/forgot-password", async (req, res) => {
   }
 
   try {
-    const resetRequest = await userStore.createPasswordResetRequest({
-      identifier,
-      baseUrl: getBaseUrl(req)
-    });
+    const resetRequest = await withTimeout(
+      userStore.createPasswordResetRequest({
+        identifier,
+        baseUrl: getBaseUrl(req)
+      }),
+      Number(process.env.FORGOT_DB_TIMEOUT_MS || 6000)
+    );
+
+    if (resetRequest === false) {
+      throw new Error("Database timeout while creating reset request.");
+    }
 
     if (resetRequest) {
-      await sendPasswordResetEmail({
-        to: resetRequest.email,
-        username: resetRequest.username || identifier,
-        resetUrl: resetRequest.resetUrl
-      });
+      const sent = await withTimeout(
+        sendPasswordResetEmail({
+          to: resetRequest.email,
+          username: resetRequest.username || identifier,
+          resetUrl: resetRequest.resetUrl
+        }),
+        Number(process.env.FORGOT_SMTP_TIMEOUT_MS || 8000)
+      );
+
+      if (sent === false) {
+        throw new Error("ETIMEDOUT SMTP send timeout.");
+      }
     }
 
     setFlash(
@@ -180,7 +211,10 @@ app.post("/forgot-password", async (req, res) => {
     );
     return res.redirect("/");
   } catch (error) {
-    setFlash(req, "error", error.message || "Could not process password reset.", "forgot");
+    if (process.env.DEBUG_AUTH === "true") {
+      console.error("Forgot password error:", error);
+    }
+    setFlash(req, "error", mapForgotPasswordError(error), "forgot");
     return res.redirect("/");
   }
 });

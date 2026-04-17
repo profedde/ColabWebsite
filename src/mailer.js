@@ -6,9 +6,16 @@ const getMailConfig = () => {
   const host = String(process.env.SMTP_HOST || "").trim();
   const port = Number(process.env.SMTP_PORT || 587);
   const user = String(process.env.SMTP_USER || "").trim();
-  const pass = String(process.env.SMTP_PASS || "").trim();
+  const rawPass = String(process.env.SMTP_PASS || "").trim();
+  const pass =
+    host.includes("gmail.com") && /\s/.test(rawPass) ? rawPass.replace(/\s+/g, "") : rawPass;
   const from = String(process.env.SMTP_FROM || process.env.MAIL_FROM || "").trim();
   const secure = String(process.env.SMTP_SECURE || "").trim() === "true";
+  const family = Number(process.env.SMTP_IP_FAMILY || 4);
+  const connectionTimeout = Number(process.env.SMTP_CONNECTION_TIMEOUT_MS || 6000);
+  const greetingTimeout = Number(process.env.SMTP_GREETING_TIMEOUT_MS || 6000);
+  const socketTimeout = Number(process.env.SMTP_SOCKET_TIMEOUT_MS || 12000);
+  const dnsTimeout = Number(process.env.SMTP_DNS_TIMEOUT_MS || 6000);
 
   return {
     host,
@@ -16,7 +23,12 @@ const getMailConfig = () => {
     user,
     pass,
     from,
-    secure
+    secure,
+    family,
+    connectionTimeout,
+    greetingTimeout,
+    socketTimeout,
+    dnsTimeout
   };
 };
 
@@ -39,6 +51,11 @@ const getTransporter = () => {
     host: config.host,
     port: config.port,
     secure: config.secure,
+    family: config.family,
+    connectionTimeout: config.connectionTimeout,
+    greetingTimeout: config.greetingTimeout,
+    socketTimeout: config.socketTimeout,
+    dnsTimeout: config.dnsTimeout,
     auth: {
       user: config.user,
       pass: config.pass
