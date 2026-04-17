@@ -16,7 +16,17 @@ const saltedHashModes = [
   "sha256_salt_password",
   "sha256_password_salt",
   "sha256_salt_colon_password",
-  "sha256_password_colon_salt"
+  "sha256_password_colon_salt",
+  "sha256_salt_password_salt",
+  "sha256_password_salt_password",
+  "sha256_salt_dot_password",
+  "sha256_password_dot_salt",
+  "sha256_salt_pipe_password",
+  "sha256_password_pipe_salt",
+  "sha256_hmac_salt_key",
+  "sha256_hmac_password_key",
+  "sha256_double_salt_password",
+  "sha256_double_password_salt"
 ];
 
 let cachedMapping = null;
@@ -33,6 +43,8 @@ const quoteIdent = (value) => {
 const pickFirst = (candidates, set) => candidates.find((candidate) => set.has(candidate)) || null;
 
 const sha256 = (value) => crypto.createHash("sha256").update(String(value)).digest("hex");
+const sha256Hmac = (key, value) =>
+  crypto.createHmac("sha256", String(key)).update(String(value)).digest("hex");
 
 const hashByMode = ({ mode, password, salt }) => {
   switch (mode) {
@@ -44,6 +56,26 @@ const hashByMode = ({ mode, password, salt }) => {
       return sha256(`${salt}:${password}`);
     case "sha256_password_colon_salt":
       return sha256(`${password}:${salt}`);
+    case "sha256_salt_password_salt":
+      return sha256(`${salt}${password}${salt}`);
+    case "sha256_password_salt_password":
+      return sha256(`${password}${salt}${password}`);
+    case "sha256_salt_dot_password":
+      return sha256(`${salt}.${password}`);
+    case "sha256_password_dot_salt":
+      return sha256(`${password}.${salt}`);
+    case "sha256_salt_pipe_password":
+      return sha256(`${salt}|${password}`);
+    case "sha256_password_pipe_salt":
+      return sha256(`${password}|${salt}`);
+    case "sha256_hmac_salt_key":
+      return sha256Hmac(salt, password);
+    case "sha256_hmac_password_key":
+      return sha256Hmac(password, salt);
+    case "sha256_double_salt_password":
+      return sha256(sha256(`${salt}${password}`));
+    case "sha256_double_password_salt":
+      return sha256(sha256(`${password}${salt}`));
     case "sha256_password":
       return sha256(password);
     default:
@@ -293,6 +325,9 @@ const loginUser = async ({ identifier, password }) => {
   }
   if (mapping.usernameCol) {
     whereParts.push(`LOWER(${quoteIdent(mapping.usernameCol)}) = LOWER($1)`);
+  }
+  if (mapping.idCol) {
+    whereParts.push(`LOWER(CAST(${quoteIdent(mapping.idCol)} AS TEXT)) = LOWER($1)`);
   }
 
   if (whereParts.length === 0) {
