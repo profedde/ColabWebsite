@@ -1,14 +1,23 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const { pool } = require("./db");
 
 const preferredColumns = {
   id: ["id", "user_id", "uuid"],
   email: ["email", "mail"],
   username: ["username", "user_name", "name", "login", "nickname"],
-  password: ["password", "password_hash", "hashed_password", "passwd", "pass"],
+  password: ["pass_hash", "password", "password_hash", "hashed_password", "passwd", "pass"],
+  salt: ["salt", "password_salt", "pass_salt"],
   createdAt: ["created_at", "createdat"],
   updatedAt: ["updated_at", "updatedat"]
 };
+
+const saltedHashModes = [
+  "sha256_salt_password",
+  "sha256_password_salt",
+  "sha256_salt_colon_password",
+  "sha256_password_colon_salt"
+];
 
 let cachedMapping = null;
 
@@ -23,9 +32,30 @@ const quoteIdent = (value) => {
 
 const pickFirst = (candidates, set) => candidates.find((candidate) => set.has(candidate)) || null;
 
+const sha256 = (value) => crypto.createHash("sha256").update(String(value)).digest("hex");
+
+const hashByMode = ({ mode, password, salt }) => {
+  switch (mode) {
+    case "sha256_salt_password":
+      return sha256(`${salt}${password}`);
+    case "sha256_password_salt":
+      return sha256(`${password}${salt}`);
+    case "sha256_salt_colon_password":
+      return sha256(`${salt}:${password}`);
+    case "sha256_password_colon_salt":
+      return sha256(`${password}:${salt}`);
+    case "sha256_password":
+      return sha256(password);
+    default:
+      return null;
+  }
+};
+
+const normalizeHex = (value) => String(value || "").trim().toLowerCase();
+
 const getColumnsByTable = async () => {
   const result = await pool.query(
-    `SELECT table_name, column_name, is_nullable, column_default
+    `SELECT table_name, column_name, is_nullable, column_default, data_type
      FROM information_schema.columns
      WHERE table_schema = 'public'
      ORDER BY table_name, ordinal_position`
@@ -52,6 +82,7 @@ const detectMapping = (tables) => {
       emailCol: pickFirst(preferredColumns.email, colSet),
       usernameCol: pickFirst(preferredColumns.username, colSet),
       passwordCol: pickFirst(preferredColumns.password, colSet),
+      saltCol: pickFirst(preferredColumns.salt, colSet),
       createdAtCol: pickFirst(preferredColumns.createdAt, colSet),
       updatedAtCol: pickFirst(preferredColumns.updatedAt, colSet),
       rows
@@ -67,6 +98,8 @@ const detectMapping = (tables) => {
     if (mapping.idCol) score += 10;
     if (mapping.emailCol) score += 10;
     if (mapping.usernameCol) score += 10;
+    if (mapping.passwordCol === "pass_hash") score += 30;
+    if (mapping.saltCol === "salt") score += 20;
 
     options.push({ score, mapping });
   }
@@ -92,6 +125,7 @@ const getMapping = async () => {
       emailCol: explicitEmail || null,
       usernameCol: explicitUsername || null,
       passwordCol: explicitPassword,
+      saltCol: process.env.USER_SALT_COLUMN || null,
       createdAtCol: process.env.USER_CREATED_AT_COLUMN || null,
       updatedAtCol: process.env.USER_UPDATED_AT_COLUMN || null,
       rows: []
@@ -104,7 +138,7 @@ const getMapping = async () => {
 
   if (!detected) {
     throw new Error(
-      "Users table not detected. Set USER_TABLE, USER_PASSWORD_COLUMN and USER_EMAIL_COLUMN or USER_USERNAME_COLUMN."
+      "Users table not detected. Set USER_TABLE, USER_PASSWORD_COLUMN and USER_USERNAME_COLUMN."
     );
   }
 
@@ -112,8 +146,10 @@ const getMapping = async () => {
   return cachedMapping;
 };
 
-const isRequiredWithoutDefault = (mapping, columnName) => {
-  const columnInfo = mapping.rows.find((r) => r.column_name === columnName);
+const getColumnInfo = (mapping, columnName) =>
+  (mapping.rows || []).find((row) => row.column_name === columnName) || null;
+
+const isRequiredWithoutDefault = (columnInfo) => {
   if (!columnInfo) return false;
   return columnInfo.is_nullable === "NO" && columnInfo.column_default == null;
 };
@@ -124,19 +160,128 @@ const toPublicUser = (row, mapping) => ({
   username: mapping.usernameCol ? row[mapping.usernameCol] : null
 });
 
-const verifyPassword = async (plain, storedValue) => {
-  if (storedValue == null) return false;
+const verifyPassword = async ({ plain, storedValue, saltValue }) => {
+  if (storedValue == null) {
+    return { valid: false, mode: null };
+  }
+
   const stored = String(storedValue);
   if (stored.startsWith("$2a$") || stored.startsWith("$2b$") || stored.startsWith("$2y$")) {
-    return bcrypt.compare(plain, stored);
+    const ok = await bcrypt.compare(plain, stored);
+    return { valid: ok, mode: ok ? "bcrypt" : null };
   }
-  return plain === stored;
+
+  const normalizedStored = normalizeHex(stored);
+  const looksLikeSha256 = /^[a-f0-9]{64}$/i.test(stored);
+
+  if (saltValue != null && saltValue !== "") {
+    const salt = String(saltValue);
+    for (const mode of saltedHashModes) {
+      const candidate = hashByMode({ mode, password: plain, salt });
+      if (candidate && normalizeHex(candidate) === normalizedStored) {
+        return { valid: true, mode };
+      }
+    }
+  }
+
+  if (looksLikeSha256) {
+    const direct = hashByMode({ mode: "sha256_password", password: plain, salt: "" });
+    if (normalizeHex(direct) === normalizedStored) {
+      return { valid: true, mode: "sha256_password" };
+    }
+  }
+
+  if (plain === stored) {
+    return { valid: true, mode: "plain" };
+  }
+
+  return { valid: false, mode: null };
 };
 
 const loadUserByIdRaw = async (userId, mapping) => {
   const sql = `SELECT * FROM ${quoteIdent(mapping.tableName)} WHERE ${quoteIdent(mapping.idCol)} = $1 LIMIT 1`;
   const result = await pool.query(sql, [userId]);
   return result.rows[0] || null;
+};
+
+const getPreferredHashMode = (hasSaltColumn) => {
+  const configured = process.env.USER_HASH_MODE;
+  if (configured) {
+    return configured;
+  }
+  return hasSaltColumn ? "sha256_salt_password" : "sha256_password";
+};
+
+const generateSalt = () => crypto.randomBytes(16).toString("hex");
+
+const generateIdValue = ({ idInfo, username }) => {
+  const dataType = String(idInfo?.data_type || "").toLowerCase();
+  if (dataType === "uuid") {
+    return crypto.randomUUID();
+  }
+  if (dataType.includes("char") || dataType.includes("text")) {
+    if (username) {
+      return username;
+    }
+    return `u_${crypto.randomBytes(8).toString("hex")}`;
+  }
+  if (dataType.includes("int") || dataType.includes("numeric") || dataType.includes("decimal")) {
+    return Math.floor(Date.now() / 1000);
+  }
+  return `u_${crypto.randomBytes(8).toString("hex")}`;
+};
+
+const getRequiredColumnFallback = (columnName) => {
+  const key = String(columnName || "").toLowerCase();
+  if (key === "elo" || key === "rating") return 1200;
+  if (
+    key === "wins" ||
+    key === "losses" ||
+    key === "draws" ||
+    key === "games" ||
+    key === "games_played" ||
+    key === "matches_played" ||
+    key === "total_games" ||
+    key === "points" ||
+    key === "coins" ||
+    key === "xp"
+  ) {
+    return 0;
+  }
+  return undefined;
+};
+
+const addInsertValue = ({ insertColumns, insertValues, column, value }) => {
+  if (!column || insertColumns.includes(column)) return;
+  insertColumns.push(column);
+  insertValues.push(value);
+};
+
+const buildPasswordPayload = async ({ mapping, password, existingMode }) => {
+  const shouldUseShaBased =
+    Boolean(mapping.saltCol) ||
+    /hash/i.test(String(mapping.passwordCol || "")) ||
+    Boolean(process.env.USER_HASH_MODE);
+
+  if (shouldUseShaBased) {
+    const mode = existingMode || getPreferredHashMode(Boolean(mapping.saltCol));
+    const salt = mapping.saltCol ? generateSalt() : "";
+    const hashed = hashByMode({ mode, password, salt });
+    if (!hashed) {
+      throw new Error(`Unsupported hash mode: ${mode}`);
+    }
+    return {
+      mode,
+      passwordValue: hashed,
+      saltValue: mapping.saltCol ? salt : null
+    };
+  }
+
+  return {
+    mode: "bcrypt",
+    passwordValue: await bcrypt.hash(password, 12),
+    saltValue: null
+  };
 };
 
 const loginUser = async ({ identifier, password }) => {
@@ -162,8 +307,13 @@ const loginUser = async ({ identifier, password }) => {
     throw new Error("Invalid credentials.");
   }
 
-  const validPassword = await verifyPassword(password, user[mapping.passwordCol]);
-  if (!validPassword) {
+  const passwordCheck = await verifyPassword({
+    plain: password,
+    storedValue: user[mapping.passwordCol],
+    saltValue: mapping.saltCol ? user[mapping.saltCol] : null
+  });
+
+  if (!passwordCheck.valid) {
     throw new Error("Invalid credentials.");
   }
 
@@ -173,21 +323,10 @@ const loginUser = async ({ identifier, password }) => {
 const registerUser = async ({ email, username, password }) => {
   const mapping = await getMapping();
   const normalizedEmail = email ? email.toLowerCase() : "";
-  const normalizedUsername = username || "";
+  const normalizedUsername = username ? username.trim() : "";
 
   if (!normalizedEmail && !normalizedUsername) {
-    throw new Error("Email or username is required.");
-  }
-
-  if (mapping.emailCol && isRequiredWithoutDefault(mapping, mapping.emailCol) && !normalizedEmail) {
-    throw new Error("Email is required by database schema.");
-  }
-  if (
-    mapping.usernameCol &&
-    isRequiredWithoutDefault(mapping, mapping.usernameCol) &&
-    !normalizedUsername
-  ) {
-    throw new Error("Username is required by database schema.");
+    throw new Error("Username is required.");
   }
 
   const duplicateParts = [];
@@ -211,34 +350,94 @@ const registerUser = async ({ email, username, password }) => {
     }
   }
 
-  const hashed = await bcrypt.hash(password, 12);
   const insertColumns = [];
   const insertValues = [];
 
   if (mapping.emailCol && normalizedEmail) {
-    insertColumns.push(mapping.emailCol);
-    insertValues.push(normalizedEmail);
+    addInsertValue({
+      insertColumns,
+      insertValues,
+      column: mapping.emailCol,
+      value: normalizedEmail
+    });
   }
   if (mapping.usernameCol && normalizedUsername) {
-    insertColumns.push(mapping.usernameCol);
-    insertValues.push(normalizedUsername);
+    addInsertValue({
+      insertColumns,
+      insertValues,
+      column: mapping.usernameCol,
+      value: normalizedUsername
+    });
   }
-  insertColumns.push(mapping.passwordCol);
-  insertValues.push(hashed);
+
+  const passwordPayload = await buildPasswordPayload({
+    mapping,
+    password
+  });
+
+  addInsertValue({
+    insertColumns,
+    insertValues,
+    column: mapping.passwordCol,
+    value: passwordPayload.passwordValue
+  });
+
+  if (mapping.saltCol && passwordPayload.saltValue) {
+    addInsertValue({
+      insertColumns,
+      insertValues,
+      column: mapping.saltCol,
+      value: passwordPayload.saltValue
+    });
+  }
 
   if (mapping.createdAtCol) {
-    insertColumns.push(mapping.createdAtCol);
-    insertValues.push(new Date());
+    addInsertValue({
+      insertColumns,
+      insertValues,
+      column: mapping.createdAtCol,
+      value: new Date()
+    });
   }
   if (mapping.updatedAtCol) {
-    insertColumns.push(mapping.updatedAtCol);
-    insertValues.push(new Date());
+    addInsertValue({
+      insertColumns,
+      insertValues,
+      column: mapping.updatedAtCol,
+      value: new Date()
+    });
+  }
+
+  const idInfo = getColumnInfo(mapping, mapping.idCol);
+  if (mapping.idCol && isRequiredWithoutDefault(idInfo) && !insertColumns.includes(mapping.idCol)) {
+    addInsertValue({
+      insertColumns,
+      insertValues,
+      column: mapping.idCol,
+      value: generateIdValue({ idInfo, username: normalizedUsername || null })
+    });
+  }
+
+  for (const columnInfo of mapping.rows || []) {
+    if (!isRequiredWithoutDefault(columnInfo)) continue;
+    const columnName = columnInfo.column_name;
+    if (insertColumns.includes(columnName)) continue;
+    if (columnName === mapping.idCol) continue;
+    const fallback = getRequiredColumnFallback(columnName);
+    if (fallback !== undefined) {
+      addInsertValue({
+        insertColumns,
+        insertValues,
+        column: columnName,
+        value: fallback
+      });
+    }
   }
 
   const missingRequiredColumns = (mapping.rows || [])
-    .filter((row) => row.is_nullable === "NO" && row.column_default == null)
+    .filter((row) => isRequiredWithoutDefault(row))
     .map((row) => row.column_name)
-    .filter((col) => !insertColumns.includes(col) && col !== mapping.idCol);
+    .filter((col) => !insertColumns.includes(col));
 
   if (missingRequiredColumns.length > 0) {
     throw new Error(
@@ -277,18 +476,43 @@ const changePassword = async ({ userId, currentPassword, newPassword }) => {
     throw new Error("User not found.");
   }
 
-  const validPassword = await verifyPassword(currentPassword, user[mapping.passwordCol]);
-  if (!validPassword) {
+  const passwordCheck = await verifyPassword({
+    plain: currentPassword,
+    storedValue: user[mapping.passwordCol],
+    saltValue: mapping.saltCol ? user[mapping.saltCol] : null
+  });
+
+  if (!passwordCheck.valid) {
     throw new Error("Current password is incorrect.");
   }
 
-  const hashed = await bcrypt.hash(newPassword, 12);
-  let sql = `UPDATE ${quoteIdent(mapping.tableName)} SET ${quoteIdent(mapping.passwordCol)} = $1`;
+  const passwordPayload = await buildPasswordPayload({
+    mapping,
+    password: newPassword,
+    existingMode: passwordCheck.mode && passwordCheck.mode.startsWith("sha256_")
+      ? passwordCheck.mode
+      : null
+  });
+
+  const values = [];
+  let sql = `UPDATE ${quoteIdent(mapping.tableName)} SET `;
+
+  values.push(passwordPayload.passwordValue);
+  sql += `${quoteIdent(mapping.passwordCol)} = $${values.length}`;
+
+  if (mapping.saltCol) {
+    values.push(passwordPayload.saltValue || generateSalt());
+    sql += `, ${quoteIdent(mapping.saltCol)} = $${values.length}`;
+  }
+
   if (mapping.updatedAtCol) {
     sql += `, ${quoteIdent(mapping.updatedAtCol)} = NOW()`;
   }
-  sql += ` WHERE ${quoteIdent(mapping.idCol)} = $2`;
-  await pool.query(sql, [hashed, userId]);
+
+  values.push(userId);
+  sql += ` WHERE ${quoteIdent(mapping.idCol)} = $${values.length}`;
+
+  await pool.query(sql, values);
 };
 
 const requestDeleteAccount = async ({ userId, reason }) => {

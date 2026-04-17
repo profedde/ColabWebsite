@@ -37,7 +37,7 @@
           <h2>Log In</h2>
           <form action="/login" method="post" class="form">
             <label>
-              Email or Username
+              Username
               <input type="text" name="identifier" required />
             </label>
             <label>
@@ -52,12 +52,8 @@
           <h2>Register</h2>
           <form action="/register" method="post" class="form">
             <label>
-              Email
-              <input type="email" name="email" />
-            </label>
-            <label>
               Username
-              <input type="text" name="username" />
+              <input type="text" name="username" required />
             </label>
             <label>
               Password

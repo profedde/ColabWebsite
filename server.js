@@ -92,7 +92,7 @@ app.post("/register", async (req, res) => {
   const confirmPassword = String(req.body.confirmPassword || "");
 
   if (!email && !username) {
-    setFlash(req, "error", "Email or username is required.");
+    setFlash(req, "error", "Username is required.");
     return res.redirect("/");
   }
 
@@ -122,7 +122,7 @@ app.post("/login", async (req, res) => {
   const password = String(req.body.password || "");
 
   if (!identifier || !password) {
-    setFlash(req, "error", "Enter email/username and password.");
+    setFlash(req, "error", "Enter username and password.");
     return res.redirect("/");
   }
 

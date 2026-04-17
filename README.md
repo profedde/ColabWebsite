@@ -18,6 +18,15 @@ Website for the indie game studio **Colab** with auth for **GuessChess**.
 - `SESSION_SECRET`
 - `NODE_ENV=production`
 
+Recommended for your current `users` table:
+
+- `USER_TABLE=users`
+- `USER_ID_COLUMN=id`
+- `USER_USERNAME_COLUMN=username`
+- `USER_PASSWORD_COLUMN=pass_hash`
+- `USER_SALT_COLUMN=salt`
+- `USER_HASH_MODE=sha256_salt_password`
+
 Optional:
 
 - `PGSSL=disable` when using `*.railway.internal`
@@ -32,6 +41,8 @@ Only if auto-detection does not match your users schema:
 - `USER_EMAIL_COLUMN`
 - `USER_USERNAME_COLUMN`
 - `USER_PASSWORD_COLUMN`
+- `USER_SALT_COLUMN`
+- `USER_HASH_MODE`
 - `USER_CREATED_AT_COLUMN`
 - `USER_UPDATED_AT_COLUMN`
 
