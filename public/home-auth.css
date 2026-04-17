@@ -1,0 +1,54 @@
+.auth-panel-login {
+  width: min(360px, 96%);
+  border-radius: 16px;
+  padding: 0.95rem 0.9rem 0.8rem;
+}
+
+.auth-panel-login h3 {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.auth-panel-login .auth-close {
+  width: 32px;
+  height: 32px;
+  font-size: 1rem;
+  border-radius: 10px;
+}
+
+.auth-panel-login .auth-input {
+  height: 44px;
+  font-size: 1rem;
+}
+
+.auth-actions-login {
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.auth-actions-login .auth-action {
+  border-radius: 10px;
+  font-weight: 700;
+  background: #f3f6f8;
+  border: 1px solid #ced9e0;
+  color: #0f2130;
+}
+
+.auth-actions-login .auth-action:hover {
+  background: #e9eff3;
+  transform: none;
+}
+
+.auth-link-muted {
+  color: #0f6b60;
+  font-size: 0.95rem;
+  margin-top: -0.1rem;
+}
+
+.auth-link-muted:hover {
+  text-decoration: underline;
+}
+
+#auth-error {
+  margin-top: 0.1rem;
+}

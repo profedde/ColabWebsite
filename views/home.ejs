@@ -1,78 +1,143 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-page="home">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Colab | GuessChess</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Official ColabGames website with ChessGuess page, support, and legal information."
+    />
+    <title>ColabGames | ChessGuess</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/png" href="/assets/colab-logo.png" />
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/home-auth.css" />
+    <script defer src="/home-auth.js"></script>
   </head>
   <body>
-    <main class="page page-home">
-      <section class="hero">
-        <p class="eyebrow">INDIE GAME STUDIO</p>
-        <h1>Colab</h1>
-        <p class="subtitle">
-          First title: <strong>GuessChess</strong>. Log in to your account or create one to manage
-          your profile.
-        </p>
+    <header class="site-header">
+      <a class="brand" href="/">
+        <img src="/assets/colab-logo.png" alt="ColabGames logo" />
+        <span>ColabGames</span>
+      </a>
 
-        <div class="store-buttons">
-          <a class="store-button" href="#" aria-disabled="true">
-            <span class="store-top">Get it on</span>
-            <span class="store-main">Google Play</span>
-          </a>
-          <a class="store-button" href="#" aria-disabled="true">
-            <span class="store-top">Download on the</span>
-            <span class="store-main">App Store</span>
-          </a>
+      <nav id="site-nav" class="site-nav">
+        <a class="active" href="/">Home</a>
+        <a href="/chessguess.html">ChessGuess</a>
+        <a href="/support.html">Support</a>
+      </nav>
+
+      <div class="header-actions">
+        <button id="lang-toggle" class="lang-toggle" type="button">EN</button>
+        <button id="open-auth-btn" class="auth-btn" type="button">Login</button>
+        <button
+          id="menu-toggle"
+          class="menu-toggle"
+          aria-expanded="false"
+          aria-controls="site-nav"
+          type="button"
+        >
+          Menu
+        </button>
+      </div>
+    </header>
+
+    <main class="page-shell">
+      <section class="hero card">
+        <div>
+          <p class="kicker">INDIE GAME STUDIO</p>
+          <h1>ColabGames builds games around fast decisions.</h1>
+          <p class="lead">
+            Current focus: ChessGuess, a hidden-information strategy game with bot mode, custom
+            rooms, and competitive online multiplayer.
+          </p>
+          <div class="actions">
+            <a class="button primary" href="#">Play ChessGuess Web</a>
+            <a class="button" href="/chessguess.html">Game page</a>
+          </div>
+        </div>
+        <div class="hero-art">
+          <img src="/assets/chessguess-logo.png" alt="ChessGuess logo" />
         </div>
       </section>
 
-      <% if (flash) { %>
-        <section class="flash flash-<%= flash.type %>"><%= flash.message %></section>
-      <% } %>
-
-      <section class="cards two-col">
-        <article class="card">
-          <h2>Log In</h2>
-          <form action="/login" method="post" class="form">
-            <label>
-              Username
-              <input type="text" name="identifier" required />
-            </label>
-            <label>
-              Password
-              <input type="password" name="password" required />
-            </label>
-            <button type="submit">Log In</button>
-          </form>
-        </article>
-
-        <article class="card">
-          <h2>Register</h2>
-          <form action="/register" method="post" class="form">
-            <label>
-              Username
-              <input type="text" name="username" required />
-            </label>
-            <label>
-              Password
-              <input type="password" name="password" minlength="8" required />
-            </label>
-            <label>
-              Confirm Password
-              <input type="password" name="confirmPassword" minlength="8" required />
-            </label>
-            <button type="submit">Create Account</button>
-          </form>
-        </article>
+      <section class="card">
+        <h2>Official Links</h2>
+        <ul class="link-list">
+          <li><a href="/privacy-policy.html">Privacy Policy</a></li>
+          <li><a href="/terms-and-conditions.html">Terms and Conditions</a></li>
+          <li><a href="/support.html">Support</a></li>
+          <li><a href="/delete-account.html">Delete Account</a></li>
+        </ul>
       </section>
-
-      <footer class="legal-links">
-        <a href="/privacy-policy.html">Privacy Policy</a>
-        <a href="/terms-and-conditions.html">Terms & Conditions</a>
-        <a href="/delete-account.html">Delete Account</a>
-      </footer>
     </main>
+
+    <footer class="site-footer">
+      <p>&copy; <span id="year"></span> ColabGames</p>
+      <div class="footer-links">
+        <a href="/privacy-policy.html">Privacy</a>
+        <a href="/terms-and-conditions.html">Terms</a>
+        <a href="/support.html">Support</a>
+        <a href="/delete-account.html">Delete Account</a>
+      </div>
+    </footer>
+
+    <div
+      id="auth-modal"
+      class="auth-modal"
+      <%= flash ? "" : "hidden" %>
+    >
+      <div class="auth-panel auth-panel-login" role="dialog" aria-modal="true" aria-label="Login">
+        <button id="close-auth-btn" class="auth-close" type="button" aria-label="Close">X</button>
+        <h3>Login</h3>
+
+        <form id="auth-form" class="auth-section" method="post" action="/login">
+          <input
+            id="auth-identifier"
+            class="auth-input"
+            type="text"
+            name="identifier"
+            maxlength="24"
+            autocomplete="username"
+            placeholder="Username"
+            required
+          />
+          <input
+            id="auth-password"
+            class="auth-input"
+            type="password"
+            name="password"
+            maxlength="72"
+            autocomplete="current-password"
+            placeholder="Password"
+            required
+          />
+
+          <input id="register-username" type="hidden" name="username" value="" />
+          <input id="register-email" type="hidden" name="email" value="" />
+          <input id="register-confirm" type="hidden" name="confirmPassword" value="" />
+
+          <div class="auth-actions auth-actions-login">
+            <button id="login-submit-btn" class="auth-action" type="submit" formaction="/login">
+              Login
+            </button>
+            <button id="register-submit-btn" class="auth-action" type="submit" formaction="/register">
+              Register
+            </button>
+          </div>
+        </form>
+
+        <a class="auth-link auth-link-muted" href="/delete-account.html">Forgot password?</a>
+
+        <p id="auth-error" class="auth-error" role="alert">
+          <%= flash ? flash.message : "" %>
+        </p>
+      </div>
+    </div>
   </body>
 </html>

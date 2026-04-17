@@ -1,0 +1,92 @@
+﻿﻿<!doctype html>
+<html lang="en" data-page="support" data-title-key="support.metaTitle" data-description-key="support.metaDescription">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Official ColabGames support page for ChessGuess: contacts, quick FAQ, and bug report template.">
+  <title>Support | ColabGames</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="assets/colab-logo.png">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <img src="assets/colab-logo.png" alt="ColabGames logo">
+      <span>ColabGames</span>
+    </a>
+
+    <nav id="site-nav" class="site-nav">
+      <a data-nav="home" data-i18n="common.navHome" href="index.html">Home</a>
+      <a data-nav="chessguess" data-i18n="common.navChessguess" href="chessguess.html">ChessGuess</a>
+      <a data-nav="support" data-i18n="common.navSupport" href="support.html">Support</a>
+    </nav>
+
+    <div class="header-actions">
+      <button id="lang-toggle" class="lang-toggle" type="button" aria-label="Change language" title="Change language">EN</button>
+      <button id="menu-toggle" class="menu-toggle" aria-expanded="false" aria-controls="site-nav" type="button" data-i18n="common.menu">Menu</button>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="card">
+      <p class="kicker" data-i18n="support.kicker">SUPPORT</p>
+      <h1 data-i18n="support.title">ChessGuess Support</h1>
+      <p data-i18n="support.intro">Use these channels for technical issues, account problems, or multiplayer reports.</p>
+      <div class="actions compact">
+        <a class="button primary" href="mailto:colabgamestudio@gmail.com" data-i18n="support.emailButton">Email support</a>
+        <a class="button" href="delete-account.html" data-i18n="support.deleteButton">Delete account</a>
+      </div>
+    </section>
+
+    <section class="grid two-col">
+      <article class="card">
+        <h2 data-i18n="support.contactsTitle">Contacts</h2>
+        <ul class="clean-list">
+          <li><span data-i18n="support.emailLabel">Email:</span> <a href="mailto:colabgamestudio@gmail.com">colabgamestudio@gmail.com</a></li>
+          <li data-i18n="support.responseTime">Average response time: 2-5 business days</li>
+          <li data-i18n="support.languages">Supported languages: Italian, English, Spanish</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2 data-i18n="support.faqTitle">Quick FAQ</h2>
+        <ul class="clean-list">
+          <li data-i18n="support.faq1">Cannot log in: verify username/password or Google login.</li>
+          <li data-i18n="support.faq2">Online match not starting: check connection and retry matchmaking.</li>
+          <li data-i18n="support.faq3">Supporter purchase issue: send a ticket with username and receipt.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2 data-i18n="support.templateTitle">Bug Report Template</h2>
+      <p data-i18n="support.templateIntro">To speed up troubleshooting, copy this format into your email:</p>
+      <pre class="template-box" data-i18n="support.templateBody">Subject: ChessGuess bug report
+
+Username:
+Platform: Android / Web
+App version:
+Date and time of issue:
+Short description:
+Steps to reproduce:
+Screenshot or video (if available):</pre>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; <span id="year"></span> ColabGames</p>
+    <div class="footer-links">
+      <a href="privacy-policy.html" data-i18n="common.footerPrivacy">Privacy</a>
+      <a href="terms-and-conditions.html" data-i18n="common.footerTerms">Terms</a>
+      <a href="support.html" data-i18n="common.footerSupport">Support</a>
+      <a href="delete-account.html" data-i18n="common.footerDelete">Delete Account</a>
+    </div>
+  </footer>
+</body>
+</html>
+
+

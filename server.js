@@ -87,9 +87,9 @@ app.get("/", (req, res) => {
 
 app.post("/register", async (req, res) => {
   const email = String(req.body.email || "").trim();
-  const username = String(req.body.username || "").trim();
+  const username = String(req.body.username || req.body.identifier || "").trim();
   const password = String(req.body.password || "");
-  const confirmPassword = String(req.body.confirmPassword || "");
+  const confirmPassword = String(req.body.confirmPassword || password);
 
   if (!email && !username) {
     setFlash(req, "error", "Username is required.");
@@ -118,7 +118,7 @@ app.post("/register", async (req, res) => {
 });
 
 app.post("/login", async (req, res) => {
-  const identifier = String(req.body.identifier || "").trim();
+  const identifier = String(req.body.identifier || req.body.username || "").trim();
   const password = String(req.body.password || "");
 
   if (!identifier || !password) {
