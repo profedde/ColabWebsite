@@ -12,6 +12,10 @@ const preferredColumns = {
   updatedAt: ["updated_at", "updatedat"]
 };
 
+const digestAlgorithms = ["md5", "sha1", "sha224", "sha256", "sha384", "sha512"];
+const commonSeparators = ["", ":", ".", "|", "-", "_", "/"];
+const commonPbkdf2Rounds = [1000, 2048, 4096, 5000, 10000, 20000, 50000, 100000];
+
 const saltedHashModes = [
   "sha256_salt_password",
   "sha256_password_salt",
@@ -85,27 +89,145 @@ const hashByMode = ({ mode, password, salt }) => {
 
 const normalizeHex = (value) => String(value || "").trim().toLowerCase();
 const MIN_TRUNCATED_HASH_LEN = 24;
+const isHexLike = (value) => /^[a-f0-9]+$/i.test(value);
+const isBase64Like = (value) => /^[a-z0-9+/=_-]+$/i.test(value);
 
 const hashMatches = (candidate, normalizedStored) => {
-  const normalizedCandidate = normalizeHex(candidate);
-  if (!normalizedCandidate || !normalizedStored) {
+  const candidateRaw = String(candidate || "").trim();
+  const storedRaw = String(normalizedStored || "").trim();
+  if (!candidateRaw || !storedRaw) {
     return false;
   }
-  if (normalizedCandidate === normalizedStored) {
+
+  if (candidateRaw === storedRaw) {
     return true;
   }
+
+  const lowerCandidate = candidateRaw.toLowerCase();
+  const lowerStored = storedRaw.toLowerCase();
+  if (lowerCandidate === lowerStored) {
+    return true;
+  }
+
+  const candidateHex = normalizeHex(candidateRaw);
+  const storedHex = normalizeHex(storedRaw);
+
+  if (candidateHex === storedHex && isHexLike(candidateHex) && isHexLike(storedHex)) {
+    return true;
+  }
+
   if (
-    normalizedStored.length >= MIN_TRUNCATED_HASH_LEN &&
-    normalizedStored.length < normalizedCandidate.length
+    storedHex.length >= MIN_TRUNCATED_HASH_LEN &&
+    storedHex.length < candidateHex.length &&
+    isHexLike(candidateHex) &&
+    isHexLike(storedHex)
   ) {
-    if (
-      normalizedCandidate.startsWith(normalizedStored) ||
-      normalizedCandidate.endsWith(normalizedStored)
-    ) {
+    if (candidateHex.startsWith(storedHex) || candidateHex.endsWith(storedHex)) {
       return true;
     }
   }
+
+  if (
+    storedRaw.length >= MIN_TRUNCATED_HASH_LEN &&
+    storedRaw.length < candidateRaw.length &&
+    isBase64Like(candidateRaw) &&
+    isBase64Like(storedRaw)
+  ) {
+    if (candidateRaw.startsWith(storedRaw) || candidateRaw.endsWith(storedRaw)) {
+      return true;
+    }
+  }
+
   return false;
+};
+
+const bufferToVariants = (buffer) => {
+  const variants = new Set();
+  const b64 = buffer.toString("base64");
+  variants.add(buffer.toString("hex"));
+  variants.add(buffer.toString("hex").toUpperCase());
+  variants.add(b64);
+  variants.add(b64.replace(/=+$/g, ""));
+  variants.add(
+    b64
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "")
+  );
+  return variants;
+};
+
+const generateLegacyCandidates = ({ password, salt, storedLength }) => {
+  const variants = new Set();
+  const saltText = String(salt || "");
+  const parts = new Set([
+    `${saltText}${password}`,
+    `${password}${saltText}`,
+    `${saltText}${password}${saltText}`,
+    `${password}${saltText}${password}`
+  ]);
+
+  for (const sep of commonSeparators) {
+    parts.add(`${saltText}${sep}${password}`);
+    parts.add(`${password}${sep}${saltText}`);
+  }
+
+  for (const algorithm of digestAlgorithms) {
+    for (const input of parts) {
+      const digestBuffer = crypto.createHash(algorithm).update(input).digest();
+      for (const variant of bufferToVariants(digestBuffer)) {
+        variants.add(variant);
+      }
+
+      const doubleBuffer = crypto.createHash(algorithm).update(digestBuffer).digest();
+      for (const variant of bufferToVariants(doubleBuffer)) {
+        variants.add(variant);
+      }
+    }
+
+    if (saltText) {
+      const hmacA = crypto.createHmac(algorithm, saltText).update(password).digest();
+      const hmacB = crypto.createHmac(algorithm, password).update(saltText).digest();
+      for (const variant of bufferToVariants(hmacA)) {
+        variants.add(variant);
+      }
+      for (const variant of bufferToVariants(hmacB)) {
+        variants.add(variant);
+      }
+    }
+  }
+
+  if (saltText) {
+    const keyLengths = [];
+    if (storedLength >= 24 && storedLength <= 256) {
+      if (storedLength % 2 === 0) {
+        keyLengths.push(Math.floor(storedLength / 2));
+      }
+      if (storedLength % 4 === 0) {
+        keyLengths.push(Math.floor((storedLength * 3) / 4));
+      }
+    }
+    keyLengths.push(16, 20, 24, 28, 32, 40, 48, 56, 64);
+
+    const uniqueKeyLengths = Array.from(new Set(keyLengths)).filter((n) => n >= 16 && n <= 128);
+
+    for (const rounds of commonPbkdf2Rounds) {
+      for (const algorithm of ["sha1", "sha256", "sha512"]) {
+        for (const keyLen of uniqueKeyLengths) {
+          try {
+            const pbkdf2 = crypto.pbkdf2Sync(password, saltText, rounds, keyLen, algorithm);
+            for (const variant of bufferToVariants(pbkdf2)) {
+              variants.add(variant);
+            }
+          } catch (_error) {
+            // Ignore unsupported combinations.
+          }
+        }
+      }
+    }
+  }
+
+  return variants;
 };
 
 const getColumnsByTable = async () => {
@@ -250,6 +372,18 @@ const verifyPassword = async ({ plain, storedValue, saltValue }) => {
     return { valid: true, mode: "plain" };
   }
 
+  const legacyCandidates = generateLegacyCandidates({
+    password: plain,
+    salt: saltValue || "",
+    storedLength: String(stored).trim().length
+  });
+
+  for (const candidate of legacyCandidates) {
+    if (hashMatches(candidate, stored)) {
+      return { valid: true, mode: "legacy_auto" };
+    }
+  }
+
   return { valid: false, mode: null };
 };
 
@@ -362,6 +496,9 @@ const loginUser = async ({ identifier, password }) => {
   const user = result.rows[0];
 
   if (!user) {
+    if (process.env.DEBUG_AUTH === "true") {
+      throw new Error(`User not found in ${mapping.tableName}: ${identifier}`);
+    }
     throw new Error("Invalid credentials.");
   }
 
@@ -372,6 +509,11 @@ const loginUser = async ({ identifier, password }) => {
   });
 
   if (!passwordCheck.valid) {
+    if (process.env.DEBUG_AUTH === "true") {
+      throw new Error(
+        `Password mismatch for ${identifier} (pass len: ${String(user[mapping.passwordCol] || "").length})`
+      );
+    }
     throw new Error("Invalid credentials.");
   }
 
