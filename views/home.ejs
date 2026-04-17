@@ -61,13 +61,19 @@
             <a class="button" href="/chessguess.html">Game page</a>
           </div>
           <div class="store-row">
-            <a class="store-cta store-google" href="#" aria-disabled="true">
-              <span class="store-top">Get it on</span>
-              <span class="store-main">Google Play</span>
+            <a class="store-badge-link" href="#" aria-disabled="true">
+              <img
+                class="store-badge-img"
+                src="/assets/Google_Play_Store_badge_EN.svg"
+                alt="Get it on Google Play"
+              />
             </a>
-            <a class="store-cta store-apple" href="#" aria-disabled="true">
-              <span class="store-top">Download on the</span>
-              <span class="store-main">App Store</span>
+            <a class="store-badge-link" href="#" aria-disabled="true">
+              <img
+                class="store-badge-img store-badge-apple"
+                src="/assets/Download_on_the_App_Store_Badge.svg"
+                alt="Download on the App Store"
+              />
             </a>
           </div>
         </div>
@@ -102,49 +108,128 @@
       class="auth-modal"
       <%= flash ? "" : "hidden" %>
     >
-      <div class="auth-panel auth-panel-login" role="dialog" aria-modal="true" aria-label="Login">
+      <div
+        class="auth-panel auth-panel-login"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Authentication"
+        data-active-panel="<%= flash && flash.panel ? flash.panel : 'login' %>"
+      >
         <button id="close-auth-btn" class="auth-close" type="button" aria-label="Close">X</button>
-        <h3>Login</h3>
 
-        <form id="auth-form" class="auth-section" method="post" action="/login">
-          <input
-            id="auth-identifier"
-            class="auth-input"
-            type="text"
-            name="identifier"
-            maxlength="24"
-            autocomplete="username"
-            placeholder="Username"
-            required
-          />
-          <input
-            id="auth-password"
-            class="auth-input"
-            type="password"
-            name="password"
-            maxlength="72"
-            autocomplete="current-password"
-            placeholder="Password"
-            required
-          />
+        <section id="auth-panel-login" class="auth-section" data-auth-panel="login">
+          <h3>Login</h3>
+          <form id="login-form" method="post" action="/login">
+            <input
+              id="auth-identifier"
+              class="auth-input"
+              type="text"
+              name="identifier"
+              maxlength="64"
+              autocomplete="username"
+              placeholder="Username or email"
+              required
+            />
+            <input
+              id="auth-password"
+              class="auth-input"
+              type="password"
+              name="password"
+              maxlength="72"
+              autocomplete="current-password"
+              placeholder="Password"
+              required
+            />
 
-          <input id="register-username" type="hidden" name="username" value="" />
-          <input id="register-email" type="hidden" name="email" value="" />
-          <input id="register-confirm" type="hidden" name="confirmPassword" value="" />
+            <div class="auth-actions auth-actions-login">
+              <button id="login-submit-btn" class="auth-action" type="submit">Login</button>
+              <button id="show-register-btn" class="auth-action" type="button">Register</button>
+            </div>
+          </form>
+          <button id="show-forgot-btn" class="auth-link auth-link-muted" type="button">
+            Forgot password?
+          </button>
+        </section>
 
-          <div class="auth-actions auth-actions-login">
-            <button id="login-submit-btn" class="auth-action" type="submit" formaction="/login">
-              Login
-            </button>
-            <button id="register-submit-btn" class="auth-action" type="submit" formaction="/register">
-              Register
-            </button>
-          </div>
-        </form>
+        <section id="auth-panel-register" class="auth-section" data-auth-panel="register" hidden>
+          <h3>Register</h3>
+          <form id="register-form" method="post" action="/register">
+            <input
+              class="auth-input"
+              type="text"
+              name="username"
+              maxlength="24"
+              autocomplete="username"
+              placeholder="Username"
+              required
+            />
+            <input
+              class="auth-input"
+              type="email"
+              name="email"
+              maxlength="120"
+              autocomplete="email"
+              placeholder="Email"
+              required
+            />
+            <input
+              class="auth-input"
+              type="password"
+              name="password"
+              maxlength="72"
+              minlength="8"
+              autocomplete="new-password"
+              placeholder="Password"
+              required
+            />
+            <input
+              class="auth-input"
+              type="password"
+              name="confirmPassword"
+              maxlength="72"
+              minlength="8"
+              autocomplete="new-password"
+              placeholder="Confirm password"
+              required
+            />
+            <div class="auth-actions auth-actions-login">
+              <button class="auth-action auth-login" type="submit">Create account</button>
+              <button id="show-login-from-register-btn" class="auth-action" type="button">
+                Back
+              </button>
+            </div>
+          </form>
+        </section>
 
-        <a class="auth-link auth-link-muted" href="/delete-account.html">Forgot password?</a>
+        <section id="auth-panel-forgot" class="auth-section" data-auth-panel="forgot" hidden>
+          <h3>Forgot Password</h3>
+          <form id="forgot-form" method="post" action="/forgot-password">
+            <input
+              class="auth-input"
+              type="text"
+              name="identifier"
+              maxlength="120"
+              autocomplete="username"
+              placeholder="Username or email"
+              required
+            />
+            <div class="auth-actions auth-actions-login">
+              <button class="auth-action auth-login" type="submit">Send reset link</button>
+              <button id="show-login-from-forgot-btn" class="auth-action" type="button">
+                Back
+              </button>
+            </div>
+          </form>
+          <p class="auth-note">
+            If your account has an email, we will send a reset link valid for 1 hour.
+          </p>
+        </section>
 
-        <p id="auth-error" class="auth-error" role="alert">
+        <p
+          id="auth-error"
+          class="auth-error <%= flash ? 'auth-error-' + flash.type : '' %>"
+          role="alert"
+        >
           <%= flash ? flash.message : "" %>
         </p>
       </div>

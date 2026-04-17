@@ -2,6 +2,7 @@ const path = require("path");
 const express = require("express");
 const session = require("express-session");
 const userStore = require("./src/userStore");
+const { sendPasswordResetEmail } = require("./src/mailer");
 const { testConnection } = require("./src/db");
 
 const app = express();
@@ -46,8 +47,8 @@ const withTimeout = async (promise, ms) => {
   }
 };
 
-const setFlash = (req, type, message) => {
-  req.session.flash = { type, message };
+const setFlash = (req, type, message, panel = "login") => {
+  req.session.flash = { type, message, panel };
 };
 
 const pullFlash = (req) => {
@@ -58,10 +59,17 @@ const pullFlash = (req) => {
 
 const requireAuth = (req, res, next) => {
   if (!req.session.userId) {
-    setFlash(req, "error", "Please log in first.");
+    setFlash(req, "error", "Please log in first.", "login");
     return res.redirect("/");
   }
   return next();
+};
+
+const getBaseUrl = (req) => {
+  if (process.env.APP_BASE_URL) {
+    return String(process.env.APP_BASE_URL).trim().replace(/\/+$/g, "");
+  }
+  return `${req.protocol}://${req.get("host")}`;
 };
 
 app.get("/health", (_req, res) => {
@@ -86,33 +94,38 @@ app.get("/", (req, res) => {
 });
 
 app.post("/register", async (req, res) => {
-  const email = String(req.body.email || "").trim();
-  const username = String(req.body.username || req.body.identifier || "").trim();
+  const email = String(req.body.email || "").trim().toLowerCase();
+  const username = String(req.body.username || "").trim();
   const password = String(req.body.password || "");
-  const confirmPassword = String(req.body.confirmPassword || password);
+  const confirmPassword = String(req.body.confirmPassword || "");
 
-  if (!email && !username) {
-    setFlash(req, "error", "Username is required.");
+  if (!username) {
+    setFlash(req, "error", "Username is required.", "register");
+    return res.redirect("/");
+  }
+
+  if (!email) {
+    setFlash(req, "error", "Email is required.", "register");
     return res.redirect("/");
   }
 
   if (password.length < 8) {
-    setFlash(req, "error", "Password must be at least 8 characters.");
+    setFlash(req, "error", "Password must be at least 8 characters.", "register");
     return res.redirect("/");
   }
 
   if (password !== confirmPassword) {
-    setFlash(req, "error", "Passwords do not match.");
+    setFlash(req, "error", "Passwords do not match.", "register");
     return res.redirect("/");
   }
 
   try {
     const user = await userStore.registerUser({ email, username, password });
     req.session.userId = user.id;
-    setFlash(req, "success", "Welcome to GuessChess.");
+    setFlash(req, "success", "Welcome to GuessChess.", "login");
     return res.redirect("/account");
   } catch (error) {
-    setFlash(req, "error", error.message || "Registration failed.");
+    setFlash(req, "error", error.message || "Registration failed.", "register");
     return res.redirect("/");
   }
 });
@@ -122,18 +135,114 @@ app.post("/login", async (req, res) => {
   const password = String(req.body.password || "");
 
   if (!identifier || !password) {
-    setFlash(req, "error", "Enter username and password.");
+    setFlash(req, "error", "Enter username and password.", "login");
     return res.redirect("/");
   }
 
   try {
     const user = await userStore.loginUser({ identifier, password });
     req.session.userId = user.id;
-    setFlash(req, "success", "Welcome back.");
+    setFlash(req, "success", "Welcome back.", "login");
     return res.redirect("/account");
   } catch (error) {
-    setFlash(req, "error", error.message || "Login failed.");
+    setFlash(req, "error", error.message || "Login failed.", "login");
     return res.redirect("/");
+  }
+});
+
+app.post("/forgot-password", async (req, res) => {
+  const identifier = String(req.body.identifier || "").trim();
+
+  if (!identifier) {
+    setFlash(req, "error", "Enter username or email.", "forgot");
+    return res.redirect("/");
+  }
+
+  try {
+    const resetRequest = await userStore.createPasswordResetRequest({
+      identifier,
+      baseUrl: getBaseUrl(req)
+    });
+
+    if (resetRequest) {
+      await sendPasswordResetEmail({
+        to: resetRequest.email,
+        username: resetRequest.username || identifier,
+        resetUrl: resetRequest.resetUrl
+      });
+    }
+
+    setFlash(
+      req,
+      "success",
+      "If the account exists, we sent an email with a reset link.",
+      "login"
+    );
+    return res.redirect("/");
+  } catch (error) {
+    setFlash(req, "error", error.message || "Could not process password reset.", "forgot");
+    return res.redirect("/");
+  }
+});
+
+app.get("/reset-password", async (req, res) => {
+  const token = String(req.query.token || "").trim();
+  const flash = pullFlash(req);
+
+  if (!token) {
+    return res.render("reset-password", {
+      flash: flash || { type: "error", message: "Reset link is invalid." },
+      token: "",
+      tokenValid: false
+    });
+  }
+
+  try {
+    const details = await userStore.getPasswordResetTokenDetails({ token });
+    return res.render("reset-password", {
+      flash,
+      token,
+      tokenValid: Boolean(details)
+    });
+  } catch (_error) {
+    return res.render("reset-password", {
+      flash: flash || { type: "error", message: "Reset link is invalid or expired." },
+      token,
+      tokenValid: false
+    });
+  }
+});
+
+app.post("/reset-password", async (req, res) => {
+  const token = String(req.body.token || "").trim();
+  const newPassword = String(req.body.newPassword || "");
+  const confirmNewPassword = String(req.body.confirmNewPassword || "");
+
+  if (!token) {
+    setFlash(req, "error", "Reset link is invalid.", "forgot");
+    return res.redirect("/");
+  }
+
+  if (newPassword.length < 8) {
+    setFlash(req, "error", "Password must be at least 8 characters.", "reset");
+    return res.redirect(`/reset-password?token=${encodeURIComponent(token)}`);
+  }
+
+  if (newPassword !== confirmNewPassword) {
+    setFlash(req, "error", "Passwords do not match.", "reset");
+    return res.redirect(`/reset-password?token=${encodeURIComponent(token)}`);
+  }
+
+  try {
+    await userStore.resetPasswordByToken({
+      token,
+      newPassword
+    });
+    setFlash(req, "success", "Password reset complete. You can now log in.", "login");
+    return res.redirect("/");
+  } catch (error) {
+    setFlash(req, "error", error.message || "Could not reset password.", "reset");
+    return res.redirect(`/reset-password?token=${encodeURIComponent(token)}`);
   }
 });
 

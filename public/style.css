@@ -46,7 +46,7 @@ body::before {
   position: fixed;
   inset: 0;
   z-index: -2;
-  background: url("/assets/guesschess-bg.svg") center / cover no-repeat;
+  background: url("/assets/background.jpg") center / cover no-repeat;
 }
 
 body::after {
@@ -299,45 +299,32 @@ h3 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.58rem;
+  align-items: center;
 }
 
-.store-cta {
-  display: grid;
-  gap: 0.1rem;
-  border: 2px solid rgba(176, 130, 60, 0.45);
-  border-radius: 15px;
-  padding: 0.62rem 0.8rem;
-  color: #2f2146;
-  background: linear-gradient(180deg, #fffef8, #fff3d4);
-  transition: transform 120ms ease, border-color 120ms ease;
+.store-badge-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  transition: transform 120ms ease;
 }
 
-.store-cta:hover {
+.store-badge-link:hover {
   text-decoration: none;
   transform: translateY(-1px);
-  border-color: rgba(176, 130, 60, 0.75);
 }
 
-.store-top {
-  font-size: 0.72rem;
-  color: #665777;
+.store-badge-img {
+  display: block;
+  width: 100%;
+  max-width: 215px;
+  height: auto;
 }
 
-.store-main {
-  font-size: 1rem;
-  font-weight: 900;
-}
-
-.store-google {
-  background:
-    radial-gradient(circle at 12% 10%, rgba(18, 206, 127, 0.18), transparent 40%),
-    linear-gradient(180deg, #f9fffb, #e9f9f1);
-}
-
-.store-apple {
-  background:
-    radial-gradient(circle at 12% 10%, rgba(96, 127, 197, 0.18), transparent 40%),
-    linear-gradient(180deg, #fcfdff, #edf2fd);
+.store-badge-apple {
+  max-width: 190px;
 }
 
 .grid {
@@ -608,6 +595,14 @@ textarea.auth-input {
   color: #af1f35;
   font-size: 0.9rem;
   font-weight: 700;
+}
+
+.auth-error-success {
+  color: #167544;
+}
+
+.auth-error-error {
+  color: #af1f35;
 }
 
 .flash-message {

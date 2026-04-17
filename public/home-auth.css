@@ -9,6 +9,13 @@
   letter-spacing: 0.01em;
 }
 
+#login-form,
+#register-form,
+#forgot-form {
+  display: grid;
+  gap: 0.55rem;
+}
+
 .auth-panel-login .auth-close {
   width: 34px;
   height: 34px;

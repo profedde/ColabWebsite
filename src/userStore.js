@@ -35,6 +35,7 @@ const saltedHashModes = [
 ];
 
 let cachedMapping = null;
+let passwordResetTableReady = false;
 
 const isSafeIdentifier = (value) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(value);
 
@@ -398,6 +399,60 @@ const loadUserByIdRaw = async (userId, mapping) => {
   return result.rows[0] || null;
 };
 
+const loadUserByIdentifierRaw = async (identifier, mapping) => {
+  const whereParts = [];
+
+  if (mapping.emailCol) {
+    whereParts.push(`LOWER(${quoteIdent(mapping.emailCol)}) = LOWER($1)`);
+  }
+  if (mapping.usernameCol) {
+    whereParts.push(`LOWER(${quoteIdent(mapping.usernameCol)}) = LOWER($1)`);
+  }
+  if (mapping.idCol) {
+    whereParts.push(`LOWER(CAST(${quoteIdent(mapping.idCol)} AS TEXT)) = LOWER($1)`);
+  }
+
+  if (whereParts.length === 0) {
+    throw new Error("No login columns available.");
+  }
+
+  const sql = `SELECT * FROM ${quoteIdent(mapping.tableName)} WHERE ${whereParts.join(" OR ")} LIMIT 1`;
+  const result = await pool.query(sql, [String(identifier || "").trim()]);
+  return result.rows[0] || null;
+};
+
+const getResetTokenHash = (token) => sha256(String(token || ""));
+
+const ensurePasswordResetTable = async () => {
+  if (passwordResetTableReady) {
+    return;
+  }
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      user_email TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS password_reset_tokens_user_id_idx
+      ON password_reset_tokens (user_id)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS password_reset_tokens_expires_at_idx
+      ON password_reset_tokens (expires_at)
+  `);
+
+  passwordResetTableReady = true;
+};
+
 const getPreferredHashMode = (hasSaltColumn) => {
   const configured = process.env.USER_HASH_MODE;
   if (configured) {
@@ -480,25 +535,7 @@ const buildPasswordPayload = async ({ mapping, password, existingMode }) => {
 
 const loginUser = async ({ identifier, password }) => {
   const mapping = await getMapping();
-  const whereParts = [];
-
-  if (mapping.emailCol) {
-    whereParts.push(`LOWER(${quoteIdent(mapping.emailCol)}) = LOWER($1)`);
-  }
-  if (mapping.usernameCol) {
-    whereParts.push(`LOWER(${quoteIdent(mapping.usernameCol)}) = LOWER($1)`);
-  }
-  if (mapping.idCol) {
-    whereParts.push(`LOWER(CAST(${quoteIdent(mapping.idCol)} AS TEXT)) = LOWER($1)`);
-  }
-
-  if (whereParts.length === 0) {
-    throw new Error("No login columns available.");
-  }
-
-  const sql = `SELECT * FROM ${quoteIdent(mapping.tableName)} WHERE ${whereParts.join(" OR ")} LIMIT 1`;
-  const result = await pool.query(sql, [identifier]);
-  const user = result.rows[0];
+  const user = await loadUserByIdentifierRaw(identifier, mapping);
 
   if (!user) {
     if (process.env.DEBUG_AUTH === "true") {
@@ -530,8 +567,16 @@ const registerUser = async ({ email, username, password }) => {
   const normalizedEmail = email ? email.toLowerCase() : "";
   const normalizedUsername = username ? username.trim() : "";
 
-  if (!normalizedEmail && !normalizedUsername) {
+  if (!normalizedUsername) {
     throw new Error("Username is required.");
+  }
+
+  if (!normalizedEmail) {
+    throw new Error("Email is required.");
+  }
+
+  if (!mapping.emailCol) {
+    throw new Error("Registration unavailable: users table does not include email.");
   }
 
   const duplicateParts = [];
@@ -753,10 +798,162 @@ const requestDeleteAccount = async ({ userId, reason }) => {
   );
 };
 
+const createPasswordResetRequest = async ({ identifier, baseUrl }) => {
+  const mapping = await getMapping();
+  if (!mapping.emailCol) {
+    throw new Error("Password reset unavailable: users table does not include email.");
+  }
+
+  const normalizedIdentifier = String(identifier || "").trim();
+  if (!normalizedIdentifier) {
+    throw new Error("Enter username or email.");
+  }
+
+  const user = await loadUserByIdentifierRaw(normalizedIdentifier, mapping);
+  if (!user || !user[mapping.emailCol]) {
+    return null;
+  }
+
+  await ensurePasswordResetTable();
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = getResetTokenHash(rawToken);
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60);
+
+  await pool.query(
+    `DELETE FROM password_reset_tokens
+     WHERE user_id = $1 OR expires_at <= NOW() OR used_at IS NOT NULL`,
+    [String(user[mapping.idCol])]
+  );
+
+  await pool.query(
+    `INSERT INTO password_reset_tokens (user_id, user_email, token_hash, expires_at)
+     VALUES ($1, $2, $3, $4)`,
+    [String(user[mapping.idCol]), String(user[mapping.emailCol]), tokenHash, expiresAt]
+  );
+
+  const cleanBaseUrl = String(baseUrl || "").trim().replace(/\/+$/g, "");
+  const resetUrl = `${cleanBaseUrl}/reset-password?token=${rawToken}`;
+
+  return {
+    email: String(user[mapping.emailCol]),
+    username: mapping.usernameCol ? String(user[mapping.usernameCol] || "") : "",
+    resetUrl
+  };
+};
+
+const getPasswordResetTokenDetails = async ({ token }) => {
+  const tokenValue = String(token || "").trim();
+  if (!tokenValue) {
+    return null;
+  }
+
+  await ensurePasswordResetTable();
+  const tokenHash = getResetTokenHash(tokenValue);
+
+  const tokenResult = await pool.query(
+    `SELECT id, user_id, user_email, expires_at, used_at
+     FROM password_reset_tokens
+     WHERE token_hash = $1
+     LIMIT 1`,
+    [tokenHash]
+  );
+
+  const row = tokenResult.rows[0];
+  if (!row) {
+    return null;
+  }
+
+  if (row.used_at || new Date(row.expires_at).getTime() <= Date.now()) {
+    return null;
+  }
+
+  const mapping = await getMapping();
+  const user = await loadUserByIdRaw(row.user_id, mapping);
+  if (!user) {
+    return null;
+  }
+
+  return {
+    tokenId: row.id,
+    userId: String(row.user_id),
+    email: String(row.user_email || ""),
+    user: toPublicUser(user, mapping)
+  };
+};
+
+const resetPasswordByToken = async ({ token, newPassword }) => {
+  const tokenValue = String(token || "").trim();
+  if (!tokenValue) {
+    throw new Error("Invalid reset link.");
+  }
+
+  const mapping = await getMapping();
+  await ensurePasswordResetTable();
+  const tokenHash = getResetTokenHash(tokenValue);
+
+  const tokenResult = await pool.query(
+    `SELECT id, user_id, expires_at, used_at
+     FROM password_reset_tokens
+     WHERE token_hash = $1
+     LIMIT 1`,
+    [tokenHash]
+  );
+
+  const resetRow = tokenResult.rows[0];
+  if (!resetRow) {
+    throw new Error("Invalid reset link.");
+  }
+
+  if (resetRow.used_at || new Date(resetRow.expires_at).getTime() <= Date.now()) {
+    throw new Error("Reset link expired. Request a new one.");
+  }
+
+  const user = await loadUserByIdRaw(resetRow.user_id, mapping);
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  const passwordPayload = await buildPasswordPayload({
+    mapping,
+    password: newPassword
+  });
+
+  const values = [];
+  let sql = `UPDATE ${quoteIdent(mapping.tableName)} SET `;
+
+  values.push(passwordPayload.passwordValue);
+  sql += `${quoteIdent(mapping.passwordCol)} = $${values.length}`;
+
+  if (mapping.saltCol) {
+    values.push(passwordPayload.saltValue || generateSalt());
+    sql += `, ${quoteIdent(mapping.saltCol)} = $${values.length}`;
+  }
+
+  if (mapping.updatedAtCol) {
+    sql += `, ${quoteIdent(mapping.updatedAtCol)} = NOW()`;
+  }
+
+  values.push(resetRow.user_id);
+  sql += ` WHERE ${quoteIdent(mapping.idCol)} = $${values.length}`;
+
+  await pool.query(sql, values);
+  await pool.query(
+    `UPDATE password_reset_tokens
+     SET used_at = NOW()
+     WHERE user_id = $1 AND used_at IS NULL`,
+    [String(resetRow.user_id)]
+  );
+
+  return toPublicUser(user, mapping);
+};
+
 module.exports = {
   loginUser,
   registerUser,
   getUserById,
   changePassword,
-  requestDeleteAccount
+  requestDeleteAccount,
+  createPasswordResetRequest,
+  getPasswordResetTokenDetails,
+  resetPasswordByToken
 };

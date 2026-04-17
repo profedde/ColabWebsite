@@ -1,5 +1,6 @@
 (function () {
   const modal = document.getElementById("auth-modal");
+  const authPanel = document.querySelector(".auth-panel-login");
   const openAuthBtn = document.getElementById("open-auth-btn");
   const closeAuthBtn = document.getElementById("close-auth-btn");
   const menuToggle = document.getElementById("menu-toggle");
@@ -7,28 +8,40 @@
   const yearNode = document.getElementById("year");
   const langToggle = document.getElementById("lang-toggle");
 
-  const authForm = document.getElementById("auth-form");
-  const usernameInput = document.getElementById("auth-identifier");
-  const passwordInput = document.getElementById("auth-password");
-  const registerUsername = document.getElementById("register-username");
-  const registerEmail = document.getElementById("register-email");
-  const registerConfirm = document.getElementById("register-confirm");
-  const registerSubmitBtn = document.getElementById("register-submit-btn");
-  const loginSubmitBtn = document.getElementById("login-submit-btn");
+  const panels = Array.from(document.querySelectorAll("[data-auth-panel]"));
+  const showRegisterBtn = document.getElementById("show-register-btn");
+  const showForgotBtn = document.getElementById("show-forgot-btn");
+  const showLoginFromRegisterBtn = document.getElementById("show-login-from-register-btn");
+  const showLoginFromForgotBtn = document.getElementById("show-login-from-forgot-btn");
+
+  const focusByPanel = {
+    login: document.getElementById("auth-identifier"),
+    register: document.querySelector('#register-form input[name="username"]'),
+    forgot: document.querySelector('#forgot-form input[name="identifier"]')
+  };
 
   if (yearNode) {
     yearNode.textContent = String(new Date().getFullYear());
   }
 
-  const openModal = function () {
+  const setPanel = function (panelName) {
+    panels.forEach(function (panel) {
+      panel.hidden = panel.dataset.authPanel !== panelName;
+    });
+
+    const targetInput = focusByPanel[panelName];
+    if (targetInput) {
+      setTimeout(function () {
+        targetInput.focus();
+      }, 10);
+    }
+  };
+
+  const openModal = function (panelName) {
     if (!modal) return;
     modal.hidden = false;
     document.body.style.overflow = "hidden";
-    setTimeout(function () {
-      if (usernameInput) {
-        usernameInput.focus();
-      }
-    }, 10);
+    setPanel(panelName || "login");
   };
 
   const closeModal = function () {
@@ -38,7 +51,9 @@
   };
 
   if (openAuthBtn) {
-    openAuthBtn.addEventListener("click", openModal);
+    openAuthBtn.addEventListener("click", function () {
+      openModal("login");
+    });
   }
 
   if (closeAuthBtn) {
@@ -51,12 +66,37 @@
         closeModal();
       }
     });
+
+    const startupPanel =
+      (authPanel && authPanel.dataset.activePanel && authPanel.dataset.activePanel.trim()) || "login";
     if (!modal.hidden) {
       document.body.style.overflow = "hidden";
-      if (usernameInput) {
-        usernameInput.focus();
-      }
     }
+    setPanel(startupPanel);
+  }
+
+  if (showRegisterBtn) {
+    showRegisterBtn.addEventListener("click", function () {
+      setPanel("register");
+    });
+  }
+
+  if (showForgotBtn) {
+    showForgotBtn.addEventListener("click", function () {
+      setPanel("forgot");
+    });
+  }
+
+  if (showLoginFromRegisterBtn) {
+    showLoginFromRegisterBtn.addEventListener("click", function () {
+      setPanel("login");
+    });
+  }
+
+  if (showLoginFromForgotBtn) {
+    showLoginFromForgotBtn.addEventListener("click", function () {
+      setPanel("login");
+    });
   }
 
   if (menuToggle && siteNav) {
@@ -70,29 +110,6 @@
   if (langToggle) {
     langToggle.addEventListener("click", function () {
       langToggle.textContent = langToggle.textContent === "EN" ? "IT" : "EN";
-    });
-  }
-
-  if (loginSubmitBtn && authForm) {
-    loginSubmitBtn.addEventListener("click", function () {
-      authForm.action = "/login";
-    });
-  }
-
-  if (registerSubmitBtn && authForm) {
-    registerSubmitBtn.addEventListener("click", function () {
-      const username = usernameInput ? usernameInput.value.trim() : "";
-      const password = passwordInput ? passwordInput.value : "";
-      if (registerUsername) {
-        registerUsername.value = username;
-      }
-      if (registerEmail) {
-        registerEmail.value = "";
-      }
-      if (registerConfirm) {
-        registerConfirm.value = password;
-      }
-      authForm.action = "/register";
     });
   }
 })();
