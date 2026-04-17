@@ -1,77 +1,139 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-page="account">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Account | Colab</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Account | ColabGames</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/png" href="/assets/colab-logo.png" />
+    <link rel="stylesheet" href="/style.css" />
+    <script defer src="/home-auth.js"></script>
   </head>
   <body>
-    <main class="page page-account">
-      <section class="hero account-hero">
-        <div>
-          <p class="eyebrow">COLAB ACCOUNT</p>
-          <h1>GuessChess</h1>
-          <p class="subtitle">Manage your account settings.</p>
-        </div>
+    <header class="site-header">
+      <a class="brand" href="/">
+        <img src="/assets/colab-logo.png" alt="ColabGames logo" />
+        <span>ColabGames</span>
+      </a>
+      <nav id="site-nav" class="site-nav">
+        <a href="/">Home</a>
+        <a href="/chessguess.html">ChessGuess</a>
+        <a href="/support.html">Support</a>
+        <a class="active" href="/account">Account</a>
+      </nav>
+      <div class="header-actions">
+        <button
+          id="menu-toggle"
+          class="menu-toggle"
+          aria-expanded="false"
+          aria-controls="site-nav"
+          type="button"
+        >
+          Menu
+        </button>
         <form action="/logout" method="post">
-          <button type="submit" class="button-secondary">Log Out</button>
+          <button class="auth-btn" type="submit">Log out</button>
         </form>
+      </div>
+    </header>
+
+    <main class="page-shell">
+      <section class="card hero hero-slim">
+        <div>
+          <p class="kicker">COLAB ACCOUNT</p>
+          <h1>Welcome back, <%= user.username || "Player" %>.</h1>
+          <p class="lead">Manage your GuessChess profile, credentials, and account requests.</p>
+        </div>
+        <div class="hero-art hero-art-small">
+          <img src="/assets/chessguess-logo.png" alt="GuessChess icon" />
+        </div>
       </section>
 
       <% if (flash) { %>
-        <section class="flash flash-<%= flash.type %>"><%= flash.message %></section>
+        <section class="flash-message flash-<%= flash.type %>"><%= flash.message %></section>
       <% } %>
 
-      <section class="cards three-col">
+      <section class="grid two-col">
         <article class="card">
           <h2>Profile</h2>
-          <div class="profile-grid">
-            <p><span>Email:</span> <%= user.email || "N/A" %></p>
-            <p><span>Username:</span> <%= user.username || "N/A" %></p>
-            <p><span>User ID:</span> <%= user.id %></p>
-          </div>
+          <dl class="spec-list">
+            <div>
+              <dt>Username</dt>
+              <dd><%= user.username || "N/A" %></dd>
+            </div>
+            <div>
+              <dt>Email</dt>
+              <dd><%= user.email || "N/A" %></dd>
+            </div>
+            <div>
+              <dt>User ID</dt>
+              <dd><%= user.id %></dd>
+            </div>
+          </dl>
         </article>
 
         <article class="card">
           <h2>Change Password</h2>
-          <form action="/account/change-password" method="post" class="form">
-            <label>
-              Current Password
-              <input type="password" name="currentPassword" required />
-            </label>
-            <label>
-              New Password
-              <input type="password" name="newPassword" minlength="8" required />
-            </label>
-            <label>
-              Confirm New Password
-              <input type="password" name="confirmNewPassword" minlength="8" required />
-            </label>
-            <button type="submit">Update Password</button>
-          </form>
-        </article>
-
-        <article class="card danger">
-          <h2>Delete Account Request</h2>
-          <p class="muted">
-            Submit your request and the team will process account deletion.
-          </p>
-          <form action="/account/delete-request" method="post" class="form">
-            <label>
-              Reason (optional)
-              <textarea name="reason" rows="4" placeholder="Reason"></textarea>
-            </label>
-            <button type="submit" class="button-danger">Request Deletion</button>
+          <form action="/account/change-password" method="post" class="form-stack">
+            <input
+              class="auth-input"
+              type="password"
+              name="currentPassword"
+              placeholder="Current password"
+              required
+            />
+            <input
+              class="auth-input"
+              type="password"
+              name="newPassword"
+              minlength="8"
+              placeholder="New password"
+              required
+            />
+            <input
+              class="auth-input"
+              type="password"
+              name="confirmNewPassword"
+              minlength="8"
+              placeholder="Confirm new password"
+              required
+            />
+            <button class="button primary" type="submit">Update Password</button>
           </form>
         </article>
       </section>
 
-      <footer class="legal-links">
-        <a href="/privacy-policy.html">Privacy Policy</a>
-        <a href="/terms-and-conditions.html">Terms & Conditions</a>
-        <a href="/delete-account.html">Delete Account</a>
-      </footer>
+      <section class="card">
+        <h2>Delete Account Request</h2>
+        <p class="lead compact">
+          Request account deletion and the Colab team will process it as soon as possible.
+        </p>
+        <form action="/account/delete-request" method="post" class="form-stack">
+          <textarea
+            class="auth-input"
+            name="reason"
+            rows="4"
+            placeholder="Reason (optional)"
+          ></textarea>
+          <button class="button danger" type="submit">Request Deletion</button>
+        </form>
+      </section>
     </main>
+
+    <footer class="site-footer">
+      <p>&copy; <span id="year"></span> ColabGames</p>
+      <div class="footer-links">
+        <a href="/privacy-policy.html">Privacy</a>
+        <a href="/terms-and-conditions.html">Terms</a>
+        <a href="/support.html">Support</a>
+        <a href="/delete-account.html">Delete Account</a>
+      </div>
+    </footer>
+
   </body>
 </html>
