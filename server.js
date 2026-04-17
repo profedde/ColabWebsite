@@ -46,10 +46,34 @@ const requireAuth = (req, res, next) => {
   return next();
 };
 
-app.get("/health", async (_req, res) => {
-  const dbOk = await testConnection();
+const withTimeout = async (promise, ms) => {
+  let timerId;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((resolve) => {
+        timerId = setTimeout(() => resolve(false), ms);
+      })
+    ]);
+  } finally {
+    if (timerId) {
+      clearTimeout(timerId);
+    }
+  }
+};
+
+app.get("/health", (_req, res) => {
+  return res.status(200).json({
+    ok: true,
+    service: "colab-guesschess-web"
+  });
+});
+
+app.get("/health/db", async (_req, res) => {
+  const dbOk = await withTimeout(testConnection(), 3000);
   return res.status(dbOk ? 200 : 500).json({
-    ok: dbOk
+    ok: dbOk,
+    database: dbOk ? "reachable" : "unreachable_or_timeout"
   });
 });
 
