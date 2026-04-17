@@ -17,6 +17,7 @@ const commonSeparators = ["", ":", ".", "|", "-", "_", "/"];
 const commonPbkdf2Rounds = [1000, 2048, 4096, 5000, 10000, 20000, 50000, 100000];
 
 const saltedHashModes = [
+  "scrypt",
   "sha256_salt_password",
   "sha256_password_salt",
   "sha256_salt_colon_password",
@@ -49,9 +50,13 @@ const pickFirst = (candidates, set) => candidates.find((candidate) => set.has(ca
 const sha256 = (value) => crypto.createHash("sha256").update(String(value)).digest("hex");
 const sha256Hmac = (key, value) =>
   crypto.createHmac("sha256", String(key)).update(String(value)).digest("hex");
+const scryptHex = (password, salt) =>
+  crypto.scryptSync(String(password), String(salt), 64).toString("hex");
 
 const hashByMode = ({ mode, password, salt }) => {
   switch (mode) {
+    case "scrypt":
+      return scryptHex(password, salt);
     case "sha256_salt_password":
       return sha256(`${salt}${password}`);
     case "sha256_password_salt":
@@ -398,7 +403,7 @@ const getPreferredHashMode = (hasSaltColumn) => {
   if (configured) {
     return configured;
   }
-  return hasSaltColumn ? "sha256_salt_password" : "sha256_password";
+  return hasSaltColumn ? "scrypt" : "sha256_password";
 };
 
 const generateSalt = () => crypto.randomBytes(16).toString("hex");
@@ -689,9 +694,11 @@ const changePassword = async ({ userId, currentPassword, newPassword }) => {
   const passwordPayload = await buildPasswordPayload({
     mapping,
     password: newPassword,
-    existingMode: passwordCheck.mode && passwordCheck.mode.startsWith("sha256_")
-      ? passwordCheck.mode
-      : null
+    existingMode:
+      passwordCheck.mode &&
+      (passwordCheck.mode === "scrypt" || passwordCheck.mode.startsWith("sha256_"))
+        ? passwordCheck.mode
+        : null
   });
 
   const values = [];
