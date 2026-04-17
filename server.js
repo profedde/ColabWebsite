@@ -93,6 +93,9 @@ const mapForgotPasswordError = (error) => {
     return "Email provider timeout. Check SMTP host/port and try again.";
   }
   if (message.includes("Resend API")) {
+    if (process.env.DEBUG_AUTH === "true") {
+      return `Debug: ${message.slice(0, 220)}`;
+    }
     return "Email provider API error. Check RESEND_API_KEY / RESEND_FROM.";
   }
   if (message.includes("Resend not configured")) {
