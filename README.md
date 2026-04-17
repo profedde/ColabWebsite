@@ -27,6 +27,12 @@ Website for the indie game studio **Colab** with auth for **GuessChess**.
 - `SMTP_FROM`
 - `SMTP_IP_FAMILY=4` (recommended on Railway to avoid IPv6 SMTP issues)
 
+Alternative (recommended if SMTP times out on Railway):
+
+- `EMAIL_PROVIDER=resend`
+- `RESEND_API_KEY`
+- `RESEND_FROM`
+
 Recommended for your current `users` table:
 
 - `USER_TABLE=users`

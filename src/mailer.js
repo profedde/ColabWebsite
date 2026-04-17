@@ -43,6 +43,67 @@ const isMailConfigured = () => {
 const isMailConfiguredForConfig = (config) =>
   Boolean(config?.host && config?.port && config?.user && config?.pass && config?.from);
 
+const getResendConfig = () => {
+  const apiKey = String(process.env.RESEND_API_KEY || "").trim();
+  const from = String(process.env.RESEND_FROM || process.env.SMTP_FROM || "").trim();
+  const timeoutMs = Number(process.env.RESEND_TIMEOUT_MS || 8000);
+  return {
+    apiKey,
+    from,
+    timeoutMs
+  };
+};
+
+const isResendConfigured = () => {
+  const config = getResendConfig();
+  return Boolean(config.apiKey && config.from);
+};
+
+const sendWithResend = async ({ to, subject, html, text }) => {
+  const resend = getResendConfig();
+  if (!resend.apiKey || !resend.from) {
+    throw new Error("Resend not configured. Set RESEND_API_KEY and RESEND_FROM.");
+  }
+
+  const controller = new AbortController();
+  const timerId = setTimeout(() => controller.abort(), resend.timeoutMs);
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resend.apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: resend.from,
+        to: [to],
+        subject,
+        html,
+        text
+      }),
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      let detail = "";
+      try {
+        detail = await response.text();
+      } catch (_error) {
+        detail = "";
+      }
+      throw new Error(`Resend API error (${response.status}): ${detail || response.statusText}`);
+    }
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("Resend API timeout");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timerId);
+  }
+};
+
 const withTimeout = async (promise, ms, timeoutMessage) => {
   let timerId = null;
   try {
@@ -161,6 +222,7 @@ const isRetryableNetworkError = (message) =>
 const sendPasswordResetEmail = async ({ to, username, resetUrl }) => {
   const config = getMailConfig();
   const appName = String(process.env.APP_NAME || "GuessChess");
+  const provider = String(process.env.EMAIL_PROVIDER || "smtp").trim().toLowerCase();
 
   const safeUser = escapeHtml(username || "player");
   const safeUrl = escapeHtml(resetUrl);
@@ -185,6 +247,11 @@ const sendPasswordResetEmail = async ({ to, username, resetUrl }) => {
     text,
     html
   };
+
+  if (provider === "resend" || (provider === "auto" && isResendConfigured())) {
+    await sendWithResend(sendPayload);
+    return;
+  }
 
   try {
     const transporter = await getTransporter(false);
@@ -212,6 +279,10 @@ const sendPasswordResetEmail = async ({ to, username, resetUrl }) => {
 
       const canTryGmailSslFallback = config.host.includes("gmail.com") && Number(config.port) !== 465;
       if (!canTryGmailSslFallback) {
+        if (provider === "auto" && isResendConfigured()) {
+          await sendWithResend(sendPayload);
+          return;
+        }
         throw retryError;
       }
 
@@ -230,7 +301,15 @@ const sendPasswordResetEmail = async ({ to, username, resetUrl }) => {
       }
 
       const fallback = await buildTransporterForConfig(gmailSslConfig);
-      await fallback.transporter.sendMail(sendPayload);
+      try {
+        await fallback.transporter.sendMail(sendPayload);
+      } catch (fallbackError) {
+        if (provider === "auto" && isResendConfigured()) {
+          await sendWithResend(sendPayload);
+          return;
+        }
+        throw fallbackError;
+      }
     }
   }
 };

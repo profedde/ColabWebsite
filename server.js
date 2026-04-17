@@ -92,6 +92,12 @@ const mapForgotPasswordError = (error) => {
   if (message.includes("ETIMEDOUT") || message.includes("Greeting never received")) {
     return "Email provider timeout. Check SMTP host/port and try again.";
   }
+  if (message.includes("Resend API")) {
+    return "Email provider API error. Check RESEND_API_KEY / RESEND_FROM.";
+  }
+  if (message.includes("Resend not configured")) {
+    return "Resend not configured. Set RESEND_API_KEY and RESEND_FROM.";
+  }
   if (message.includes("users table does not include email")) {
     return "Users table mapping error: email column not detected. Set USER_EMAIL_COLUMN=email.";
   }
