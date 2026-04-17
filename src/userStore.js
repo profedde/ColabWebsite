@@ -302,16 +302,32 @@ const getMapping = async () => {
   const explicitUsername = process.env.USER_USERNAME_COLUMN;
 
   if (explicitTable && explicitPassword && (explicitEmail || explicitUsername)) {
+    const grouped = await getColumnsByTable();
+    const explicitRows = grouped.get(explicitTable) || grouped.get(explicitTable.toLowerCase()) || [];
+    const explicitSet = new Set(explicitRows.map((r) => r.column_name));
+
+    const inferredId =
+      process.env.USER_ID_COLUMN || pickFirst(preferredColumns.id, explicitSet) || "id";
+    const inferredEmail = explicitEmail || pickFirst(preferredColumns.email, explicitSet) || null;
+    const inferredUsername =
+      explicitUsername || pickFirst(preferredColumns.username, explicitSet) || null;
+    const inferredSalt =
+      process.env.USER_SALT_COLUMN || pickFirst(preferredColumns.salt, explicitSet) || null;
+    const inferredCreatedAt =
+      process.env.USER_CREATED_AT_COLUMN || pickFirst(preferredColumns.createdAt, explicitSet) || null;
+    const inferredUpdatedAt =
+      process.env.USER_UPDATED_AT_COLUMN || pickFirst(preferredColumns.updatedAt, explicitSet) || null;
+
     cachedMapping = {
       tableName: explicitTable,
-      idCol: process.env.USER_ID_COLUMN || "id",
-      emailCol: explicitEmail || null,
-      usernameCol: explicitUsername || null,
+      idCol: inferredId,
+      emailCol: inferredEmail,
+      usernameCol: inferredUsername,
       passwordCol: explicitPassword,
-      saltCol: process.env.USER_SALT_COLUMN || null,
-      createdAtCol: process.env.USER_CREATED_AT_COLUMN || null,
-      updatedAtCol: process.env.USER_UPDATED_AT_COLUMN || null,
-      rows: []
+      saltCol: inferredSalt,
+      createdAtCol: inferredCreatedAt,
+      updatedAtCol: inferredUpdatedAt,
+      rows: explicitRows
     };
     return cachedMapping;
   }
