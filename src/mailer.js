@@ -40,6 +40,9 @@ const isMailConfigured = () => {
   return Boolean(config.host && config.port && config.user && config.pass && config.from);
 };
 
+const isMailConfiguredForConfig = (config) =>
+  Boolean(config?.host && config?.port && config?.user && config?.pass && config?.from);
+
 const withTimeout = async (promise, ms, timeoutMessage) => {
   let timerId = null;
   try {
@@ -89,27 +92,8 @@ const resolveSmtpTarget = async (config) => {
   }
 };
 
-const getTransporter = async (forceRefresh = false) => {
-  const config = getMailConfig();
-
-  if (!isMailConfigured()) {
-    throw new Error("Email service not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM.");
-  }
-
+const buildTransporterForConfig = async (config) => {
   const target = await resolveSmtpTarget(config);
-  const key = [
-    target.connectHost,
-    target.tlsServername || "",
-    config.port,
-    config.user,
-    config.secure,
-    config.family
-  ].join("|");
-
-  if (!forceRefresh && cachedTransporter && cachedTransporterKey === key) {
-    return cachedTransporter;
-  }
-
   const transportOptions = {
     host: target.connectHost,
     port: config.port,
@@ -128,9 +112,33 @@ const getTransporter = async (forceRefresh = false) => {
     transportOptions.tls = { servername: target.tlsServername };
   }
 
-  cachedTransporter = nodemailer.createTransport(transportOptions);
-  cachedTransporterKey = key;
+  return {
+    key: [
+      target.connectHost,
+      target.tlsServername || "",
+      config.port,
+      config.user,
+      config.secure,
+      config.family
+    ].join("|"),
+    transporter: nodemailer.createTransport(transportOptions)
+  };
+};
 
+const getTransporter = async (forceRefresh = false) => {
+  const config = getMailConfig();
+
+  if (!isMailConfigured()) {
+    throw new Error("Email service not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM.");
+  }
+
+  const built = await buildTransporterForConfig(config);
+  if (!forceRefresh && cachedTransporter && cachedTransporterKey === built.key) {
+    return cachedTransporter;
+  }
+
+  cachedTransporter = built.transporter;
+  cachedTransporterKey = built.key;
   return cachedTransporter;
 };
 
@@ -141,6 +149,14 @@ const escapeHtml = (value) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+
+const isRetryableNetworkError = (message) =>
+  message.includes("ENETUNREACH") ||
+  message.includes("EHOSTUNREACH") ||
+  message.includes("ECONNREFUSED") ||
+  message.includes("ECONNRESET") ||
+  message.includes("ETIMEDOUT") ||
+  message.includes("Connection timeout");
 
 const sendPasswordResetEmail = async ({ to, username, resetUrl }) => {
   const config = getMailConfig();
@@ -175,14 +191,7 @@ const sendPasswordResetEmail = async ({ to, username, resetUrl }) => {
     await transporter.sendMail(sendPayload);
   } catch (error) {
     const message = String(error?.message || "");
-    const retryable =
-      message.includes("ENETUNREACH") ||
-      message.includes("EHOSTUNREACH") ||
-      message.includes("ECONNREFUSED") ||
-      message.includes("ECONNRESET") ||
-      message.includes("ETIMEDOUT");
-
-    if (!retryable) {
+    if (!isRetryableNetworkError(message)) {
       throw error;
     }
 
@@ -190,8 +199,39 @@ const sendPasswordResetEmail = async ({ to, username, resetUrl }) => {
       console.error("SMTP first attempt failed, retrying once:", message);
     }
 
-    const retryTransporter = await getTransporter(true);
-    await retryTransporter.sendMail(sendPayload);
+    try {
+      const retryTransporter = await getTransporter(true);
+      await retryTransporter.sendMail(sendPayload);
+      return;
+    } catch (retryError) {
+      const retryMessage = String(retryError?.message || "");
+
+      if (!isRetryableNetworkError(retryMessage)) {
+        throw retryError;
+      }
+
+      const canTryGmailSslFallback = config.host.includes("gmail.com") && Number(config.port) !== 465;
+      if (!canTryGmailSslFallback) {
+        throw retryError;
+      }
+
+      const gmailSslConfig = {
+        ...config,
+        port: 465,
+        secure: true
+      };
+
+      if (!isMailConfiguredForConfig(gmailSslConfig)) {
+        throw retryError;
+      }
+
+      if (process.env.DEBUG_AUTH === "true") {
+        console.error("SMTP retry failed, trying Gmail SSL fallback on port 465.");
+      }
+
+      const fallback = await buildTransporterForConfig(gmailSslConfig);
+      await fallback.transporter.sendMail(sendPayload);
+    }
   }
 };
 
