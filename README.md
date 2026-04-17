@@ -26,6 +26,11 @@ Set these Railway environment variables:
 - `SESSION_SECRET` (a long random string)
 - `NODE_ENV=production`
 
+Optional DB SSL override:
+
+- `PGSSL=disable` for `*.railway.internal` private hosts
+- `PGSSL=require` for external hosts requiring TLS
+
 Optional explicit user table mapping (only if auto-detection does not match your schema):
 
 - `USER_TABLE`
@@ -35,3 +40,8 @@ Optional explicit user table mapping (only if auto-detection does not match your
 - `USER_PASSWORD_COLUMN`
 - `USER_CREATED_AT_COLUMN`
 - `USER_UPDATED_AT_COLUMN`
+
+## Health endpoints
+
+- `/health` -> app/process health (fast, no DB)
+- `/health/db` -> database connectivity status

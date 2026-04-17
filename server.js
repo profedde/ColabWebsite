@@ -7,6 +7,7 @@ const userStore = require("./src/userStore");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set("trust proxy", 1);
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
@@ -16,13 +17,14 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.use(
   session({
+    name: "guesschess.sid",
     secret: process.env.SESSION_SECRET || "guesschess-dev-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "production" ? "auto" : false,
       maxAge: 1000 * 60 * 60 * 24 * 14
     }
   })
@@ -217,6 +219,14 @@ app.post("/account/delete-request", requireAuth, async (req, res) => {
 
 app.use((_req, res) => {
   res.status(404).send("Not Found");
+});
+
+app.use((error, _req, res, _next) => {
+  console.error(error);
+  if (res.headersSent) {
+    return;
+  }
+  res.status(500).send("Internal Server Error");
 });
 
 app.listen(PORT, () => {
