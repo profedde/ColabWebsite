@@ -9,7 +9,7 @@ Website for the indie game studio **Colab** with auth for **GuessChess**.
 - Register modal with username, email, password, confirm password
 - Account page after login
 - Change password
-- Forgot password email with reset link
+- Forgot password email with reset link (Brevo API)
 - Account deletion request form
 - Privacy policy / terms / delete-account pages copied from your existing website
 - Uses your custom background image and official Google Play/App Store badge assets
@@ -20,24 +20,16 @@ Website for the indie game studio **Colab** with auth for **GuessChess**.
 - `SESSION_SECRET`
 - `NODE_ENV=production`
 - `APP_BASE_URL` (for reset links in emails)
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USER`
-- `SMTP_PASS`
-- `SMTP_FROM`
-- `SMTP_IP_FAMILY=4` (recommended on Railway to avoid IPv6 SMTP issues)
-
-Alternative (recommended if SMTP times out on Railway):
-
-- `EMAIL_PROVIDER=resend`
-- `RESEND_API_KEY`
-- `RESEND_FROM`
+- `BREVO_API_KEY`
+- `BREVO_FROM_NAME`
+- `BREVO_FROM_EMAIL`
 
 Recommended for your current `users` table:
 
 - `USER_TABLE=users`
 - `USER_ID_COLUMN=id`
 - `USER_USERNAME_COLUMN=username`
+- `USER_EMAIL_COLUMN=email`
 - `USER_PASSWORD_COLUMN=pass_hash`
 - `USER_SALT_COLUMN=salt`
 - `USER_HASH_MODE=scrypt`

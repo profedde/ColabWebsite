@@ -74,32 +74,17 @@ const getBaseUrl = (req) => {
 
 const mapForgotPasswordError = (error) => {
   const message = String(error?.message || "");
-  if (message.includes("ENETUNREACH")) {
-    return "Email network unavailable on server. Set SMTP_IP_FAMILY=4 and retry.";
-  }
-  if (message.includes("EHOSTUNREACH")) {
-    return "Email network unreachable from server (EHOSTUNREACH).";
-  }
-  if (message.includes("ECONNREFUSED")) {
-    return "SMTP connection refused. Check host/port or provider SMTP restrictions.";
-  }
-  if (message.includes("ECONNRESET")) {
-    return "SMTP connection reset by provider. Retry or check SMTP security settings.";
-  }
-  if (message.includes("EAUTH") || message.includes("Invalid login")) {
-    return "SMTP login failed. Check SMTP_USER / SMTP_PASS app password.";
-  }
-  if (message.includes("ETIMEDOUT") || message.includes("Greeting never received")) {
-    return "Email provider timeout. Check SMTP host/port and try again.";
-  }
-  if (message.includes("Resend API")) {
+  if (message.includes("Brevo API")) {
     if (process.env.DEBUG_AUTH === "true") {
       return `Debug: ${message.slice(0, 220)}`;
     }
-    return "Email provider API error. Check RESEND_API_KEY / RESEND_FROM.";
+    return "Email provider API error. Check BREVO_API_KEY / BREVO_FROM_EMAIL.";
   }
-  if (message.includes("Resend not configured")) {
-    return "Resend not configured. Set RESEND_API_KEY and RESEND_FROM.";
+  if (message.includes("Brevo not configured")) {
+    return "Brevo not configured. Set BREVO_API_KEY and BREVO_FROM_EMAIL.";
+  }
+  if (message.includes("Brevo API timeout")) {
+    return "Brevo API timeout. Retry in a few seconds.";
   }
   if (message.includes("users table does not include email")) {
     return "Users table mapping error: email column not detected. Set USER_EMAIL_COLUMN=email.";
@@ -225,11 +210,11 @@ app.post("/forgot-password", async (req, res) => {
           username: resetRequest.username || identifier,
           resetUrl: resetRequest.resetUrl
         }),
-        Number(process.env.FORGOT_SMTP_TIMEOUT_MS || 5000)
+        Number(process.env.FORGOT_EMAIL_TIMEOUT_MS || 8000)
       );
 
       if (sent === false) {
-        throw new Error("ETIMEDOUT SMTP send timeout.");
+        throw new Error("Email provider timeout.");
       }
     }
 
