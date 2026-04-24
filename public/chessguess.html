@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Official ChessGuess page with key features and web app links.">
-  <title>ChessGuess | ColabGames</title>
+  <meta name="description" content="Official GuessChess page with key features and download links.">
+  <title>GuessChess | ColabGames</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,7 +16,7 @@
   {
     "@context": "https://schema.org",
     "@type": "MobileApplication",
-    "name": "ChessGuess",
+    "name": "GuessChess",
     "operatingSystem": "Android",
     "applicationCategory": "GameApplication",
     "publisher": {
@@ -36,7 +36,7 @@
 
     <nav id="site-nav" class="site-nav">
       <a data-nav="home" data-i18n="common.navHome" href="/">Home</a>
-      <a data-nav="chessguess" data-i18n="common.navChessguess" href="chessguess.html">ChessGuess</a>
+      <a data-nav="chessguess" data-i18n="common.navChessguess" href="chessguess.html">GuessChess</a>
       <a data-nav="support" data-i18n="common.navSupport" href="support.html">Support</a>
     </nav>
 
@@ -50,15 +50,18 @@
     <section class="hero card hero-slim">
       <div>
         <p class="kicker" data-i18n="chess.kicker">GAME PAGE</p>
-        <h1 data-i18n="chess.title">ChessGuess</h1>
+        <h1 data-i18n="chess.title">GuessChess</h1>
         <p class="lead" data-i18n="chess.lead">Hidden pieces, visible strategy. Read your opponent plan before you see every piece.</p>
         <div class="actions">
-          <a class="button primary" href="../shadow-board-web/feddafight/index.html" data-i18n="chess.openWeb">Open Web App</a>
-          <a class="button" href="../shadow-board-web/feddafight/android/app/build/outputs/apk/debug/app-debug.apk" data-i18n="chess.downloadApk">Download Debug APK</a>
+          <a
+            class="button primary"
+            href="https://play.google.com/store/apps/details?id=com.guesschess"
+            data-i18n="chess.openWeb"
+          >Download GuessChess</a>
         </div>
       </div>
-      <div class="hero-art hero-art-small">
-        <img src="assets/chessguess-logo.png" alt="ChessGuess logo">
+      <div class="hero-art hero-art-small hero-logo-only">
+        <img src="assets/chessguess-logo.png" alt="GuessChess logo">
       </div>
     </section>
 
@@ -85,7 +88,6 @@
   </footer>
 </body>
 </html>
-
 
 
 

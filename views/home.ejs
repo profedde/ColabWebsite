@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Official ColabGames website with ChessGuess page, support, and legal information."
+      content="Official ColabGames website with GuessChess page, support, and legal information."
     />
-    <title>ColabGames | ChessGuess</title>
+    <title>ColabGames | GuessChess</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -27,14 +27,14 @@
       </a>
 
       <nav id="site-nav" class="site-nav">
-        <a class="active" href="/">Home</a>
-        <a href="/chessguess.html">ChessGuess</a>
-        <a href="/support.html">Support</a>
+        <a class="active" href="/" data-i18n="navHome">Home</a>
+        <a href="/chessguess.html" data-i18n="navChessguess">GuessChess</a>
+        <a href="/support.html" data-i18n="navSupport">Support</a>
       </nav>
 
       <div class="header-actions">
         <button id="lang-toggle" class="lang-toggle" type="button">EN</button>
-        <button id="open-auth-btn" class="auth-btn" type="button">Login</button>
+        <button id="open-auth-btn" class="auth-btn" type="button" data-i18n="login">Login</button>
         <button
           id="menu-toggle"
           class="menu-toggle"
@@ -42,53 +42,42 @@
           aria-controls="site-nav"
           type="button"
         >
-          Menu
+          <span data-i18n="menu">Menu</span>
         </button>
       </div>
     </header>
 
     <main class="page-shell">
-      <section class="hero card">
+      <section class="hero card home-hero">
         <div>
-          <p class="kicker">INDIE GAME STUDIO</p>
-          <h1>ColabGames builds games around fast decisions.</h1>
-          <p class="lead">
-            Current focus: ChessGuess, a hidden-information strategy game with bot mode, custom
+          <p class="kicker" data-i18n="homeKicker">INDIE GAME STUDIO</p>
+          <h1 data-i18n="homeTitle">ColabGames builds games around fast decisions.</h1>
+          <p class="lead" data-i18n="homeLead">
+            Current focus: GuessChess, a hidden-information strategy game with bot mode, custom
             rooms, and competitive online multiplayer.
           </p>
-          <div class="actions">
-            <a class="button primary" href="#">Play ChessGuess Web</a>
-            <a class="button" href="/chessguess.html">Game page</a>
-          </div>
-          <div class="store-row">
-            <a class="store-badge-link" href="#" aria-disabled="true">
+          <div class="store-row store-row-single">
+            <a
+              class="store-badge-link"
+              href="https://play.google.com/store/apps/details?id=com.guesschess"
+            >
               <img
                 class="store-badge-img"
                 src="/assets/Google_Play_Store_badge_EN.svg"
                 alt="Get it on Google Play"
               />
             </a>
-            <a class="store-badge-link" href="#" aria-disabled="true">
-              <img
-                class="store-badge-img store-badge-apple"
-                src="/assets/Download_on_the_App_Store_Badge.svg"
-                alt="Download on the App Store"
-              />
-            </a>
           </div>
-        </div>
-        <div class="hero-art">
-          <img src="/assets/chessguess-logo.png" alt="ChessGuess logo" />
         </div>
       </section>
 
       <section class="card">
-        <h2>Official Links</h2>
+        <h2 data-i18n="linksTitle">Official Links</h2>
         <ul class="link-list">
-          <li><a href="/privacy-policy.html">Privacy Policy</a></li>
-          <li><a href="/terms-and-conditions.html">Terms and Conditions</a></li>
-          <li><a href="/support.html">Support</a></li>
-          <li><a href="/delete-account.html">Delete Account</a></li>
+          <li><a href="/privacy-policy.html" data-i18n="privacyPolicy">Privacy Policy</a></li>
+          <li><a href="/terms-and-conditions.html" data-i18n="terms">Terms and Conditions</a></li>
+          <li><a href="/support.html" data-i18n="support">Support</a></li>
+          <li><a href="/delete-account.html" data-i18n="deleteAccount">Delete Account</a></li>
         </ul>
       </section>
     </main>
@@ -96,10 +85,10 @@
     <footer class="site-footer">
       <p>&copy; <span id="year"></span> ColabGames</p>
       <div class="footer-links">
-        <a href="/privacy-policy.html">Privacy</a>
-        <a href="/terms-and-conditions.html">Terms</a>
-        <a href="/support.html">Support</a>
-        <a href="/delete-account.html">Delete Account</a>
+        <a href="/privacy-policy.html" data-i18n="privacy">Privacy</a>
+        <a href="/terms-and-conditions.html" data-i18n="termsShort">Terms</a>
+        <a href="/support.html" data-i18n="support">Support</a>
+        <a href="/delete-account.html" data-i18n="deleteAccount">Delete Account</a>
       </div>
     </footer>
 
@@ -118,7 +107,7 @@
         <button id="close-auth-btn" class="auth-close" type="button" aria-label="Close">X</button>
 
         <section id="auth-panel-login" class="auth-section" data-auth-panel="login">
-          <h3>Login</h3>
+          <h3 data-i18n="loginTitle">Login</h3>
           <form id="login-form" method="post" action="/login">
             <input
               id="auth-identifier"
@@ -128,6 +117,7 @@
               maxlength="64"
               autocomplete="username"
               placeholder="Username or email"
+              data-i18n-placeholder="identifier"
               required
             />
             <input
@@ -138,21 +128,22 @@
               maxlength="72"
               autocomplete="current-password"
               placeholder="Password"
+              data-i18n-placeholder="password"
               required
             />
 
             <div class="auth-actions auth-actions-login">
-              <button id="login-submit-btn" class="auth-action" type="submit">Login</button>
-              <button id="show-register-btn" class="auth-action" type="button">Register</button>
+              <button id="login-submit-btn" class="auth-action" type="submit" data-i18n="login">Login</button>
+              <button id="show-register-btn" class="auth-action" type="button" data-i18n="register">Register</button>
             </div>
           </form>
-          <button id="show-forgot-btn" class="auth-link auth-link-muted" type="button">
+          <button id="show-forgot-btn" class="auth-link auth-link-muted" type="button" data-i18n="forgotPassword">
             Forgot password?
           </button>
         </section>
 
         <section id="auth-panel-register" class="auth-section" data-auth-panel="register" hidden>
-          <h3>Register</h3>
+          <h3 data-i18n="registerTitle">Register</h3>
           <form id="register-form" method="post" action="/register">
             <input
               class="auth-input"
@@ -161,6 +152,7 @@
               maxlength="24"
               autocomplete="username"
               placeholder="Username"
+              data-i18n-placeholder="username"
               required
             />
             <input
@@ -170,6 +162,7 @@
               maxlength="120"
               autocomplete="email"
               placeholder="Email"
+              data-i18n-placeholder="email"
               required
             />
             <input
@@ -180,6 +173,7 @@
               minlength="8"
               autocomplete="new-password"
               placeholder="Password"
+              data-i18n-placeholder="password"
               required
             />
             <input
@@ -190,19 +184,20 @@
               minlength="8"
               autocomplete="new-password"
               placeholder="Confirm password"
+              data-i18n-placeholder="confirmPassword"
               required
             />
             <div class="auth-actions auth-actions-login">
-              <button class="auth-action auth-login" type="submit">Create account</button>
+              <button class="auth-action auth-login" type="submit" data-i18n="createAccount">Create account</button>
               <button id="show-login-from-register-btn" class="auth-action" type="button">
-                Back
+                <span data-i18n="back">Back</span>
               </button>
             </div>
           </form>
         </section>
 
         <section id="auth-panel-forgot" class="auth-section" data-auth-panel="forgot" hidden>
-          <h3>Forgot Password</h3>
+          <h3 data-i18n="forgotTitle">Forgot Password</h3>
           <form id="forgot-form" method="post" action="/forgot-password">
             <input
               class="auth-input"
@@ -211,16 +206,17 @@
               maxlength="120"
               autocomplete="username"
               placeholder="Username or email"
+              data-i18n-placeholder="identifier"
               required
             />
             <div class="auth-actions auth-actions-login">
-              <button class="auth-action auth-login" type="submit">Send reset link</button>
+              <button class="auth-action auth-login" type="submit" data-i18n="sendReset">Send reset link</button>
               <button id="show-login-from-forgot-btn" class="auth-action" type="button">
-                Back
+                <span data-i18n="back">Back</span>
               </button>
             </div>
           </form>
-          <p class="auth-note">
+          <p class="auth-note" data-i18n="resetNote">
             If your account has an email, we will send a reset link valid for 1 hour.
           </p>
         </section>
@@ -236,4 +232,3 @@
     </div>
   </body>
 </html>
-
